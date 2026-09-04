@@ -6,7 +6,15 @@ import {
   clamp,
   startingLifeFor,
 } from "./rules";
-import type { Action, Format, GameState, Player, PlayerId } from "./types";
+import { STOPPED_TIMER, elapsedMsOf, startedTimerAt } from "./timer";
+import type {
+  Action,
+  Format,
+  GameState,
+  Player,
+  PlayerId,
+  TimerState,
+} from "./types";
 
 /**
  * Ids are deterministic (`p1`, `p2`, ...) rather than random so that the
@@ -49,16 +57,27 @@ export function syncDamageMaps(players: Player[]): Player[] {
   });
 }
 
-export function createGame(format: Format, playerCount: number): GameState {
+export function createGame(
+  format: Format,
+  playerCount: number,
+  timer: TimerState = STOPPED_TIMER,
+): GameState {
   const count = clamp(Math.round(playerCount), MIN_PLAYERS, MAX_PLAYERS);
   const life = startingLifeFor(format);
   const players: Player[] = [];
   for (let n = 1; n <= count; n++) players.push(createPlayer(`p${n}`, life));
-  return { version: 1, format, players: syncDamageMaps(players) };
+  return { version: 2, format, players: syncDamageMaps(players), timer };
 }
 
-/** Fresh totals, same seats. Used by RESET_GAME and by format changes. */
-function resetLife(state: GameState, format: Format): GameState {
+/**
+ * Fresh totals and a fresh clock, same seats. Used by RESET_GAME and by format
+ * changes, which already wipe every life total and so start a new game.
+ */
+function restartGame(
+  state: GameState,
+  format: Format,
+  at: number,
+): GameState {
   const life = startingLifeFor(format);
   return {
     ...state,
@@ -66,9 +85,15 @@ function resetLife(state: GameState, format: Format): GameState {
     players: syncDamageMaps(
       state.players.map((p) => ({ ...p, life, commanderDamage: {} })),
     ),
+    timer: startedTimerAt(at),
   };
 }
 
+/**
+ * Deterministic for the static export: no clock is read here, so the
+ * prerendered HTML and the first client render always agree. GameProvider
+ * starts the timer after mount.
+ */
 export const initialGameState: GameState = createGame("commander", 4);
 
 export function gameReducer(state: GameState, action: Action): GameState {
@@ -77,14 +102,35 @@ export function gameReducer(state: GameState, action: Action): GameState {
       return action.state;
 
     case "NEW_GAME":
-      return createGame(action.format, action.playerCount);
+      return createGame(
+        action.format,
+        action.playerCount,
+        startedTimerAt(action.at),
+      );
 
     case "RESET_GAME":
-      return resetLife(state, state.format);
+      return restartGame(state, state.format, action.at);
 
     case "SET_FORMAT":
       if (action.format === state.format) return state;
-      return resetLife(state, action.format);
+      return restartGame(state, action.format, action.at);
+
+    case "PAUSE_TIMER": {
+      if (state.timer.startedAt === null) return state;
+      return {
+        ...state,
+        // Bank what has run so far; elapsed then stops moving on its own.
+        timer: {
+          startedAt: null,
+          elapsedMs: elapsedMsOf(state.timer, action.at),
+        },
+      };
+    }
+
+    case "RESUME_TIMER": {
+      if (state.timer.startedAt !== null) return state;
+      return { ...state, timer: { ...state.timer, startedAt: action.at } };
+    }
 
     case "ADD_PLAYER": {
       if (state.players.length >= MAX_PLAYERS) return state;

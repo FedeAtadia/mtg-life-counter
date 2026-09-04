@@ -31,7 +31,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // exported HTML and the first client render always match.
   useEffect(() => {
     const saved = loadGame();
-    if (saved) dispatch({ type: "HYDRATE", state: saved });
+    if (saved) {
+      dispatch({ type: "HYDRATE", state: saved });
+    } else {
+      // No saved game, so this is a fresh board: start its clock. Totals are
+      // already at starting life, so this only sets the timer running.
+      dispatch({ type: "RESET_GAME", at: Date.now() });
+    }
     hydrated.current = true;
   }, []);
 

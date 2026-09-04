@@ -13,18 +13,37 @@ export interface Player {
   commanderDamage: Record<PlayerId, number>;
 }
 
+/**
+ * Wall-clock, not a tick count: elapsed time is derived from timestamps, so
+ * locking the phone, backgrounding the app or reloading all keep the right
+ * total. A counter driven by setInterval would drift or stall.
+ */
+export interface TimerState {
+  /** Epoch ms when the running segment began; null while paused. */
+  startedAt: number | null;
+  /** Milliseconds banked from previous segments. */
+  elapsedMs: number;
+}
+
 export interface GameState {
-  version: 1;
+  version: 2;
   format: Format;
   /** Length 2..6. Array order is seat order. */
   players: Player[];
+  timer: TimerState;
 }
 
+/**
+ * Actions that touch the timer carry the current time rather than reading the
+ * clock themselves, which keeps the reducer pure and testable.
+ */
 export type Action =
   | { type: "HYDRATE"; state: GameState }
-  | { type: "NEW_GAME"; format: Format; playerCount: number }
-  | { type: "RESET_GAME" }
-  | { type: "SET_FORMAT"; format: Format }
+  | { type: "NEW_GAME"; format: Format; playerCount: number; at: number }
+  | { type: "RESET_GAME"; at: number }
+  | { type: "SET_FORMAT"; format: Format; at: number }
+  | { type: "PAUSE_TIMER"; at: number }
+  | { type: "RESUME_TIMER"; at: number }
   | { type: "ADD_PLAYER" }
   | { type: "REMOVE_PLAYER"; id: PlayerId }
   | { type: "ADJUST_LIFE"; id: PlayerId; delta: number }

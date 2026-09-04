@@ -1,6 +1,7 @@
 import { syncDamageMaps } from "./gameReducer";
 import { MAX_NAME_LENGTH, MAX_PLAYERS, MIN_PLAYERS } from "./rules";
-import type { GameState, Player } from "./types";
+import { STOPPED_TIMER } from "./timer";
+import type { GameState, Player, TimerState } from "./types";
 
 const STORAGE_KEY = "mtg-life-counter:v1";
 
@@ -33,13 +34,34 @@ function parsePlayer(value: unknown): Player | null {
 }
 
 /**
+ * A v1 save has no timer. Rather than discard a game someone is in the middle
+ * of, upgrade it and give it a stopped clock — we have no idea when it started,
+ * and inventing an elapsed time would be worse than showing 0:00.
+ */
+function parseTimer(value: unknown): TimerState {
+  if (!isRecord(value)) return STOPPED_TIMER;
+  const { startedAt, elapsedMs } = value;
+  return {
+    startedAt:
+      typeof startedAt === "number" && Number.isFinite(startedAt)
+        ? startedAt
+        : null,
+    elapsedMs:
+      typeof elapsedMs === "number" && Number.isFinite(elapsedMs)
+        ? Math.max(0, elapsedMs)
+        : 0,
+  };
+}
+
+/**
  * Validates anything read back from storage before it becomes state. Returns
- * null for absent, corrupt, or older-shaped data so the caller falls back to a
- * fresh game rather than rendering something broken.
+ * null for absent or corrupt data so the caller falls back to a fresh game
+ * rather than rendering something broken. Known older versions are migrated,
+ * not rejected — people have games in progress.
  */
 export function parseGameState(value: unknown): GameState | null {
   if (!isRecord(value)) return null;
-  if (value.version !== 1) return null;
+  if (value.version !== 1 && value.version !== 2) return null;
   if (value.format !== "standard" && value.format !== "commander") return null;
   if (!Array.isArray(value.players)) return null;
 
@@ -53,10 +75,11 @@ export function parseGameState(value: unknown): GameState | null {
   if (players.length < MIN_PLAYERS || players.length > MAX_PLAYERS) return null;
 
   return {
-    version: 1,
+    version: 2,
     format: value.format,
     // Drops damage entries for departed players and fills in missing ones.
     players: syncDamageMaps(players),
+    timer: parseTimer(value.timer),
   };
 }
 
