@@ -1,10 +1,12 @@
-/**
+﻿/**
  * Seat layouts for a phone lying flat in the middle of the table.
  *
  * Each seat is rotated so it reads upright for the player sitting on that edge
- * of the device. "Up" for a player is the edge they sit at, and CSS rotation is
- * clockwise, so: near edge 0deg, far edge 180deg, left edge -90deg, right edge
- * 90deg. Seat order runs around the table starting from the near edge.
+ * of the device. "Up" for a reader is the side of the page FURTHEST from them --
+ * lay a book on a table and the top of the text is the far end -- so a seat's
+ * rotation points its text away from the edge that player sits at, toward the
+ * middle of the device: near edge 0deg, far edge 180deg, left edge 90deg, right
+ * edge -90deg. Seat order runs around the table starting from the near edge.
  *
  * Layouts favour panels that are wider than they are tall, because a life total
  * is a wide, short thing. On a portrait phone that means putting players on the
@@ -44,8 +46,8 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
     cols: "1fr 1fr",
     seats: [
       { gridArea: "2 / 1 / 3 / 3", rotation: 0 },
-      { gridArea: "1 / 1 / 2 / 2", rotation: -90 },
-      { gridArea: "1 / 2 / 2 / 3", rotation: 90 },
+      { gridArea: "1 / 1 / 2 / 2", rotation: 90 },
+      { gridArea: "1 / 2 / 2 / 3", rotation: -90 },
     ],
   },
 
@@ -54,10 +56,10 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
     rows: "1fr 1fr",
     cols: "1fr 1fr",
     seats: [
-      { gridArea: "2 / 1 / 3 / 2", rotation: -90 },
-      { gridArea: "1 / 1 / 2 / 2", rotation: -90 },
-      { gridArea: "1 / 2 / 2 / 3", rotation: 90 },
-      { gridArea: "2 / 2 / 3 / 3", rotation: 90 },
+      { gridArea: "2 / 1 / 3 / 2", rotation: 90 },
+      { gridArea: "1 / 1 / 2 / 2", rotation: 90 },
+      { gridArea: "1 / 2 / 2 / 3", rotation: -90 },
+      { gridArea: "2 / 2 / 3 / 3", rotation: -90 },
     ],
   },
 
@@ -67,11 +69,11 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
     rows: "repeat(6, 1fr)",
     cols: "1fr 1fr",
     seats: [
-      { gridArea: "5 / 1 / 7 / 2", rotation: -90 },
-      { gridArea: "3 / 1 / 5 / 2", rotation: -90 },
-      { gridArea: "1 / 1 / 3 / 2", rotation: -90 },
-      { gridArea: "1 / 2 / 4 / 3", rotation: 90 },
-      { gridArea: "4 / 2 / 7 / 3", rotation: 90 },
+      { gridArea: "5 / 1 / 7 / 2", rotation: 90 },
+      { gridArea: "3 / 1 / 5 / 2", rotation: 90 },
+      { gridArea: "1 / 1 / 3 / 2", rotation: 90 },
+      { gridArea: "1 / 2 / 4 / 3", rotation: -90 },
+      { gridArea: "4 / 2 / 7 / 3", rotation: -90 },
     ],
   },
 
@@ -80,12 +82,12 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
     rows: "1fr 1fr 1fr",
     cols: "1fr 1fr",
     seats: [
-      { gridArea: "3 / 1 / 4 / 2", rotation: -90 },
-      { gridArea: "2 / 1 / 3 / 2", rotation: -90 },
-      { gridArea: "1 / 1 / 2 / 2", rotation: -90 },
-      { gridArea: "1 / 2 / 2 / 3", rotation: 90 },
-      { gridArea: "2 / 2 / 3 / 3", rotation: 90 },
-      { gridArea: "3 / 2 / 4 / 3", rotation: 90 },
+      { gridArea: "3 / 1 / 4 / 2", rotation: 90 },
+      { gridArea: "2 / 1 / 3 / 2", rotation: 90 },
+      { gridArea: "1 / 1 / 2 / 2", rotation: 90 },
+      { gridArea: "1 / 2 / 2 / 3", rotation: -90 },
+      { gridArea: "2 / 2 / 3 / 3", rotation: -90 },
+      { gridArea: "3 / 2 / 4 / 3", rotation: -90 },
     ],
   },
 };
@@ -93,3 +95,4 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
 export function layoutFor(playerCount: number): BoardLayout {
   return SEAT_LAYOUTS[playerCount] ?? SEAT_LAYOUTS[4];
 }
+

@@ -57,14 +57,38 @@ describe("seat layouts", () => {
     },
   );
 
-  it("faces four, five and six player seats out to the left and right edges", () => {
+  it("seats four, five and six player games down the left and right edges", () => {
     for (const count of [4, 5, 6]) {
       const layout = SEAT_LAYOUTS[count];
       expect(layout.cols).toBe("1fr 1fr");
       for (const seat of layout.seats) {
         const { colStart } = parseArea(seat.gridArea);
-        // Left column reads out to the left edge, right column to the right.
-        expect(seat.rotation).toBe(colStart === 1 ? -90 : 90);
+        // A seat points its text away from the edge that player sits at: the
+        // left column reads rightwards, the right column reads leftwards.
+        expect(seat.rotation).toBe(colStart === 1 ? 90 : -90);
+      }
+    }
+  });
+
+  it("points every seat's text away from the edge that player sits at", () => {
+    // Screen axes: +x right, +y down. CSS rotation is clockwise, so it maps the
+    // text's up vector (0,-1) to (sin, -cos). That vector must point from the
+    // player's edge toward the middle of the device.
+    const awayFromEdge: Record<number, [number, number]> = {
+      0: [0, -1], // near edge: up the screen
+      180: [0, 1], // far edge: down the screen
+      90: [1, 0], // left edge: rightwards
+      [-90]: [-1, 0], // right edge: leftwards
+    };
+
+    // Math.round can hand back -0 here, which toEqual treats as different.
+    const norm = (n: number) => (Math.round(n) === 0 ? 0 : Math.round(n));
+
+    for (const count of counts) {
+      for (const seat of SEAT_LAYOUTS[count].seats) {
+        const rad = (seat.rotation * Math.PI) / 180;
+        const up: [number, number] = [norm(Math.sin(rad)), norm(-Math.cos(rad))];
+        expect(up).toEqual(awayFromEdge[seat.rotation]);
       }
     }
   });
