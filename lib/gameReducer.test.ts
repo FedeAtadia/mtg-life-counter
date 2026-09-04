@@ -2,7 +2,11 @@
 import { createGame, gameReducer } from "./gameReducer";
 import { LETHAL_COMMANDER_DAMAGE, isEliminated } from "./rules";
 import { parseGameState } from "./storage";
+import { elapsedMsOf } from "./timer";
 import type { Action, GameState } from "./types";
+
+/** A fixed clock, so nothing here depends on when the suite runs. */
+const T0 = 1_700_000_000_000;
 
 const apply = (state: GameState, ...actions: Action[]): GameState =>
   actions.reduce(gameReducer, state);
@@ -161,7 +165,11 @@ describe("format and reset", () => {
   it("resets every total when the format changes", () => {
     let state = createGame("commander", 3);
     state = gameReducer(state, damage("p1", "p2", 9));
-    state = gameReducer(state, { type: "SET_FORMAT", format: "standard" });
+    state = gameReducer(state, {
+      type: "SET_FORMAT",
+      format: "standard",
+      at: T0,
+    });
 
     expect(state.format).toBe("standard");
     expect(state.players.every((p) => p.life === 20)).toBe(true);
@@ -176,10 +184,102 @@ describe("format and reset", () => {
       name: "Nissa",
     });
     state = gameReducer(state, { type: "ADJUST_LIFE", id: "p2", delta: -13 });
-    state = gameReducer(state, { type: "RESET_GAME" });
+    state = gameReducer(state, { type: "RESET_GAME", at: T0 });
 
     expect(find(state, "p2").name).toBe("Nissa");
     expect(find(state, "p2").life).toBe(40);
+  });
+});
+
+describe("timer", () => {
+  const MINUTE = 60_000;
+
+  it("starts a fresh clock on reset", () => {
+    const state = gameReducer(createGame("commander", 4), {
+      type: "RESET_GAME",
+      at: T0,
+    });
+    expect(state.timer).toEqual({ startedAt: T0, elapsedMs: 0 });
+    expect(elapsedMsOf(state.timer, T0 + 90_000)).toBe(90_000);
+  });
+
+  it("starts a fresh clock when the format changes", () => {
+    let state = createGame("commander", 4);
+    state = gameReducer(state, { type: "RESET_GAME", at: T0 });
+    state = gameReducer(state, {
+      type: "SET_FORMAT",
+      format: "standard",
+      at: T0 + 5 * MINUTE,
+    });
+    expect(elapsedMsOf(state.timer, T0 + 5 * MINUTE)).toBe(0);
+  });
+
+  it("banks elapsed time on pause and stops accumulating", () => {
+    let state = gameReducer(createGame("commander", 4), {
+      type: "RESET_GAME",
+      at: T0,
+    });
+    state = gameReducer(state, { type: "PAUSE_TIMER", at: T0 + 3 * MINUTE });
+
+    expect(state.timer).toEqual({ startedAt: null, elapsedMs: 3 * MINUTE });
+    // An hour of wall-clock passing must not move a paused clock.
+    expect(elapsedMsOf(state.timer, T0 + 63 * MINUTE)).toBe(3 * MINUTE);
+  });
+
+  it("continues from the banked total on resume", () => {
+    let state = gameReducer(createGame("commander", 4), {
+      type: "RESET_GAME",
+      at: T0,
+    });
+    state = gameReducer(state, { type: "PAUSE_TIMER", at: T0 + 3 * MINUTE });
+    state = gameReducer(state, { type: "RESUME_TIMER", at: T0 + 10 * MINUTE });
+
+    // Two minutes of play after a seven minute break: 3 + 2, not 3 + 9.
+    expect(elapsedMsOf(state.timer, T0 + 12 * MINUTE)).toBe(5 * MINUTE);
+  });
+
+  it("does not drift across repeated pause/resume cycles", () => {
+    let state = gameReducer(createGame("commander", 4), {
+      type: "RESET_GAME",
+      at: T0,
+    });
+    let now = T0;
+    for (let i = 0; i < 20; i++) {
+      now += MINUTE;
+      state = gameReducer(state, { type: "PAUSE_TIMER", at: now });
+      now += 5 * MINUTE; // paused, must not count
+      state = gameReducer(state, { type: "RESUME_TIMER", at: now });
+    }
+    expect(elapsedMsOf(state.timer, now)).toBe(20 * MINUTE);
+  });
+
+  it("ignores pausing a paused clock and resuming a running one", () => {
+    let state = gameReducer(createGame("commander", 4), {
+      type: "RESET_GAME",
+      at: T0,
+    });
+    expect(gameReducer(state, { type: "RESUME_TIMER", at: T0 + 99 })).toBe(
+      state,
+    );
+
+    state = gameReducer(state, { type: "PAUSE_TIMER", at: T0 + MINUTE });
+    expect(gameReducer(state, { type: "PAUSE_TIMER", at: T0 + 99 * MINUTE })).toBe(
+      state,
+    );
+  });
+
+  it("leaves the clock alone for life and roster changes", () => {
+    const state = gameReducer(createGame("commander", 4), {
+      type: "RESET_GAME",
+      at: T0,
+    });
+    const after = apply(
+      state,
+      { type: "ADJUST_LIFE", id: "p1", delta: -7 },
+      { type: "ADD_PLAYER" },
+      damage("p1", "p2", 3),
+    );
+    expect(after.timer).toEqual(state.timer);
   });
 });
 
@@ -204,9 +304,45 @@ describe("parseGameState", () => {
     expect(parsed?.players[1].commanderDamage).toEqual({ p1: 0 });
   });
 
+  it("migrates a version 1 save, keeping the game and adding a stopped clock", () => {
+    // Exactly what a friend mid-game would have in localStorage from v1.
+    const v1 = {
+      version: 1,
+      format: "commander",
+      players: [
+        { id: "p1", name: "Fede", life: 27, accent: 0, commanderDamage: { p2: 13 } },
+        { id: "p2", name: "", life: 40, accent: 1, commanderDamage: { p1: 0 } },
+      ],
+    };
+
+    const parsed = parseGameState(v1);
+
+    expect(parsed?.version).toBe(2);
+    expect(parsed?.players[0].life).toBe(27);
+    expect(parsed?.players[0].name).toBe("Fede");
+    expect(parsed?.players[0].commanderDamage.p2).toBe(13);
+    // No way to know when that game started, so it shows 0:00 rather than a
+    // fabricated elapsed time.
+    expect(parsed?.timer).toEqual({ startedAt: null, elapsedMs: 0 });
+  });
+
+  it("repairs a corrupt timer instead of dropping the game", () => {
+    const parsed = parseGameState({
+      version: 2,
+      format: "standard",
+      players: [
+        { id: "p1", name: "", life: 20, accent: 0, commanderDamage: {} },
+        { id: "p2", name: "", life: 20, accent: 1, commanderDamage: {} },
+      ],
+      timer: { startedAt: "nonsense", elapsedMs: -5 },
+    });
+
+    expect(parsed?.timer).toEqual({ startedAt: null, elapsedMs: 0 });
+  });
+
   it("rejects junk, wrong versions and impossible rosters", () => {
     expect(parseGameState(null)).toBeNull();
-    expect(parseGameState({ version: 2, format: "commander", players: [] })).toBeNull();
+    expect(parseGameState({ version: 3, format: "commander", players: [] })).toBeNull();
     expect(
       parseGameState({ version: 1, format: "pauper", players: [] }),
     ).toBeNull();

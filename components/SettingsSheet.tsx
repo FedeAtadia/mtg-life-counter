@@ -9,6 +9,8 @@ import {
   defaultNameFor,
   startingLifeFor,
 } from "@/lib/rules";
+import { formatElapsed, isRunning } from "@/lib/timer";
+import { useElapsed } from "@/lib/useElapsed";
 import { useGame } from "@/lib/useGame";
 import type { Format } from "@/lib/types";
 
@@ -32,24 +34,28 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useGame();
   const [armed, setArmed] = useArmedAction();
   const playerCount = state.players.length;
+  const elapsed = useElapsed(state.timer);
+  const timerRunning = isRunning(state.timer);
 
-  const selectFormat = (format: Format) => {
+  // These take the clock rather than reading it, for the same reason the
+  // reducer does: the only place `Date.now()` is called is the event handler.
+  const selectFormat = (format: Format, at: number) => {
     if (format === state.format) return;
     const key = `format:${format}`;
     if (armed !== key) {
       setArmed(key);
       return;
     }
-    dispatch({ type: "SET_FORMAT", format });
+    dispatch({ type: "SET_FORMAT", format, at });
     setArmed(null);
   };
 
-  const resetGame = () => {
+  const resetGame = (at: number) => {
     if (armed !== "reset") {
       setArmed("reset");
       return;
     }
-    dispatch({ type: "RESET_GAME" });
+    dispatch({ type: "RESET_GAME", at });
     setArmed(null);
     onClose();
   };
@@ -74,6 +80,28 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
+        <SectionLabel>Timer</SectionLabel>
+        <div className="mb-5 flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+          <span
+            className="tnum flex-1 text-2xl font-semibold"
+            style={{ opacity: timerRunning ? 1 : 0.45 }}
+          >
+            {formatElapsed(elapsed)}
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              dispatch({
+                type: timerRunning ? "PAUSE_TIMER" : "RESUME_TIMER",
+                at: Date.now(),
+              })
+            }
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-white/80 active:bg-white/10"
+          >
+            {timerRunning ? "Pause" : "Resume"}
+          </button>
+        </div>
+
         <SectionLabel>Format</SectionLabel>
         <div className="mb-1 grid grid-cols-2 gap-2">
           {FORMATS.map((format) => {
@@ -83,7 +111,7 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
               <button
                 key={format}
                 type="button"
-                onClick={() => selectFormat(format)}
+                onClick={() => selectFormat(format, Date.now())}
                 className={`rounded-xl border px-3 py-3 text-left transition-colors ${
                   selected
                     ? "border-white/45 bg-white/10"
@@ -172,7 +200,7 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
 
         <button
           type="button"
-          onClick={resetGame}
+          onClick={() => resetGame(Date.now())}
           className={`rounded-xl border px-3 py-3 text-sm font-semibold transition-colors ${
             armed === "reset"
               ? "border-[var(--danger)] bg-[var(--danger)]/20 text-white"
