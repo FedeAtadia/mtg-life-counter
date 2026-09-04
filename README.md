@@ -36,9 +36,11 @@ npm run build # static export into out/
 ### Seats
 
 The board is a CSS grid, and each seat is rotated so it reads upright for the
-player sitting on that edge of the phone: near edge 0°, far edge 180°, left edge
-−90°, right edge 90°. The arrangement changes with the player count — see
-`lib/seatLayout.ts`:
+player sitting on that edge of the phone. "Up" for a reader is the side of the
+page furthest from them — lay a book on a table and the top of the text is the
+far end — so a seat points its text away from that player's edge, toward the
+middle of the device: near edge 0°, far edge 180°, left edge 90°, right edge
+−90°. The arrangement changes with the player count — see `lib/seatLayout.ts`:
 
 | Players | Arrangement |
 | --- | --- |
