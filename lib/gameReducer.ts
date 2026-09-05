@@ -1,5 +1,5 @@
+import { defaultColorsForSeat, normalizeColors } from "./identity";
 import {
-  ACCENTS,
   MAX_NAME_LENGTH,
   MAX_PLAYERS,
   MIN_PLAYERS,
@@ -34,7 +34,7 @@ function createPlayer(id: PlayerId, life: number): Player {
     id,
     name: "",
     life,
-    accent: (n - 1) % ACCENTS.length,
+    colors: defaultColorsForSeat(n - 1),
     commanderDamage: {},
   };
 }
@@ -66,7 +66,7 @@ export function createGame(
   const life = startingLifeFor(format);
   const players: Player[] = [];
   for (let n = 1; n <= count; n++) players.push(createPlayer(`p${n}`, life));
-  return { version: 2, format, players: syncDamageMaps(players), timer };
+  return { version: 3, format, players: syncDamageMaps(players), timer };
 }
 
 /**
@@ -188,6 +188,18 @@ export function gameReducer(state: GameState, action: Action): GameState {
         ...state,
         players: state.players.map((p) =>
           p.id === action.id ? { ...p, name } : p,
+        ),
+      };
+    }
+
+    case "SET_PLAYER_COLORS": {
+      // Stored in WUBRG order so the pips and the wash never depend on the
+      // order the buttons happened to be tapped in.
+      const colors = normalizeColors(action.colors);
+      return {
+        ...state,
+        players: state.players.map((p) =>
+          p.id === action.id ? { ...p, colors } : p,
         ),
       };
     }

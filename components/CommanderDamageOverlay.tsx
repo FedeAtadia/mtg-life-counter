@@ -1,10 +1,7 @@
 "use client";
 
-import {
-  LETHAL_COMMANDER_DAMAGE,
-  accentFor,
-  displayName,
-} from "@/lib/rules";
+import { identityOf, trimFor, washFor } from "@/lib/identity";
+import { LETHAL_COMMANDER_DAMAGE, displayName } from "@/lib/rules";
 import { useGame } from "@/lib/useGame";
 import { useSteadyHold } from "@/lib/useSteadyHold";
 import type { Player } from "@/lib/types";
@@ -16,7 +13,7 @@ import type { Player } from "@/lib/types";
  * added but their text did not, so five tiles overflowed.
  */
 const SIZE = {
-  heading: "min(6.5cqh, 4cqw, 14px)",
+  heading: "min(6.5cqh, 4cqw, 15px)",
   done: "min(7cqh, 4.5cqw, 16px)",
 };
 
@@ -33,8 +30,8 @@ interface Props {
 }
 
 /**
- * Rendered inside the player's panel so it inherits that seat's rotation.
- * One tile per opponent: left half removes damage, right half adds it.
+ * The card's textbox: rules text, in the place a card keeps it. Rendered inside
+ * the player's panel so it inherits that seat's rotation.
  */
 export default function CommanderDamageOverlay({
   player,
@@ -45,10 +42,12 @@ export default function CommanderDamageOverlay({
 
   return (
     <div
-      // Fully opaque: at 96% the panel's own name and eliminated badge ghosted
-      // through and collided with the heading.
-      className="no-select absolute inset-0 z-20 rounded-2xl bg-[#0a0a11]"
-      style={{ containerType: "size" }}
+      className="no-select absolute inset-0 z-30 rounded-[3.5cqh]"
+      style={{
+        containerType: "size",
+        background: "linear-gradient(180deg, #211d19, #17140f)",
+        boxShadow: "inset 0 0 0 1px var(--metal-dim)",
+      }}
     >
       {/* Tapping the backdrop closes too, so there are two ways out. */}
       <button
@@ -59,16 +58,16 @@ export default function CommanderDamageOverlay({
         onClick={onClose}
       />
 
-      <div className="relative flex h-full w-full flex-col gap-[2cqh] p-[3cqh]">
+      <div className="relative flex h-full w-full flex-col gap-[1.8cqh] p-[2.6cqh]">
         <span
-          className="shrink-0 text-center font-semibold tracking-widest text-white/45 uppercase"
-          style={{ fontSize: SIZE.heading }}
+          className="shrink-0 text-center font-[family-name:var(--font-display)] font-semibold tracking-[0.18em] uppercase"
+          style={{ fontSize: SIZE.heading, color: "var(--metal)" }}
         >
           Damage taken from
         </span>
 
         <div
-          className="grid min-h-0 flex-1 gap-[2cqh]"
+          className="grid min-h-0 flex-1 gap-[1.6cqh]"
           style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
         >
           {opponents.map((opponent) => (
@@ -86,10 +85,17 @@ export default function CommanderDamageOverlay({
         <button
           type="button"
           onClick={onClose}
-          className="shrink-0 rounded-xl bg-white/90 py-[3cqh] font-semibold tracking-wide text-[#0a0a11] uppercase active:bg-white"
-          // 44px is the smallest comfortable touch target; hold that floor even
-          // on the shortest panel rather than letting it scale away.
-          style={{ fontSize: SIZE.done, minHeight: "max(12cqh, 44px)" }}
+          className="flex shrink-0 items-center justify-center rounded-[1.4cqh] font-[family-name:var(--font-display)] font-semibold tracking-[0.16em] uppercase active:brightness-110"
+          style={{
+            fontSize: SIZE.done,
+            // 44px is the smallest comfortable touch target; hold that floor
+            // even on the shortest panel rather than letting it scale away.
+            minHeight: "max(12cqh, 44px)",
+            color: "#1a1611",
+            background: "linear-gradient(180deg, var(--parchment), #ab9d80)",
+            boxShadow:
+              "inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 3px rgba(0,0,0,0.6)",
+          }}
         >
           Done
         </button>
@@ -100,16 +106,8 @@ export default function CommanderDamageOverlay({
 
 /**
  * Each tile is its own size container, so its text scales with the tile it is
- * actually drawn in rather than with the panel behind it.
- */
-/**
- * Weighted towards width on purpose. Tiles come out wide and short at high
- * player counts (roughly 85x57 at six on a 390px phone), so sizing mostly off
- * height starves the text — that is what left the opponent names at 8px.
- *
- * The caps are set for the other extreme. A two player game gives the single
- * tile most of the panel, and low ceilings there stranded a 44px number in a
- * 355x303 box.
+ * actually drawn in rather than with the panel behind it. Tiles carry the
+ * opponent's own colours, which is how you find someone at a glance.
  */
 const TILE = {
   name: "min(26cqh, 16cqw, 40px)",
@@ -128,7 +126,8 @@ function DamageTile({
 }) {
   const { dispatch } = useGame();
   const lethal = value >= LETHAL_COMMANDER_DAMAGE;
-  const accent = accentFor(source);
+  const colors = identityOf(source);
+  const trim = trimFor(colors);
 
   const adjust = (delta: number) =>
     dispatch({
@@ -138,19 +137,19 @@ function DamageTile({
       delta,
     });
 
-  // Same press behaviour as a life total: one per tap, steady while held.
+  // Same press behaviour as a life total: one per tap, jumps of ten while held.
   const minus = useSteadyHold((points) => adjust(-points));
   const plus = useSteadyHold((points) => adjust(points));
 
   return (
     <div
-      className="relative flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl border"
+      className="relative flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-[1.4cqh]"
       style={{
         containerType: "size",
-        borderColor: lethal
-          ? "var(--danger)"
-          : `color-mix(in oklab, ${accent} 40%, #262633)`,
-        background: `linear-gradient(160deg, color-mix(in oklab, ${accent} 18%, #14141d), #101018)`,
+        background: washFor(colors),
+        boxShadow: lethal
+          ? "inset 0 0 0 1px var(--lethal), 0 0 12px rgba(217,69,47,0.25)"
+          : `inset 0 0 0 1px color-mix(in oklab, ${trim} 42%, #2b2620)`,
       }}
     >
       <button
@@ -170,25 +169,25 @@ function DamageTile({
 
       <div className="pointer-events-none flex w-full flex-col items-center px-[4cqw]">
         <span
-          className="max-w-full truncate text-white/55"
-          style={{ fontSize: TILE.name }}
+          className="max-w-full truncate font-[family-name:var(--font-display)] tracking-wide"
+          style={{ fontSize: TILE.name, color: "var(--metal)" }}
         >
           {displayName(source)}
         </span>
         <div className="flex items-baseline gap-[8cqw]">
-          <span className="text-white/20" style={{ fontSize: TILE.hint }}>
+          <span style={{ fontSize: TILE.hint, color: "#4d463d", lineHeight: 1 }}>
             &minus;
           </span>
           <span
             className="tnum leading-none font-semibold"
             style={{
               fontSize: TILE.value,
-              color: lethal ? "var(--danger)" : undefined,
+              color: lethal ? "var(--lethal)" : undefined,
             }}
           >
             {value}
           </span>
-          <span className="text-white/20" style={{ fontSize: TILE.hint }}>
+          <span style={{ fontSize: TILE.hint, color: "#4d463d", lineHeight: 1 }}>
             +
           </span>
         </div>

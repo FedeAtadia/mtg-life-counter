@@ -1,21 +1,36 @@
 @import "tailwindcss";
 
-/* System fonts only: nothing to download, so the board paints instantly and
-   the app keeps working with no signal at the table. */
+/* Self-hosted, so the board still paints with no signal at the table. */
 @theme inline {
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--font-body), Georgia, "Times New Roman", serif;
+  --font-display: var(--font-display), Georgia, serif;
 }
 
+/* A card on a dark table: the black border of a card, aged metal for the
+   frame rules, and parchment reserved for text rather than fill. A real
+   card's type line is light, and at full brightness that is a torch in a
+   dim room. */
 :root {
-  --bg: #08080c;
-  --surface: #14141c;
-  --surface-2: #1d1d28;
-  --border: #2c2c3a;
-  --text: #f2f2f6;
-  --muted: #9a9aab;
-  --danger: #e0483a;
+  --bg: #0a0809;
+  --table: #100e0f;
+  --border-black: #08070a;
+  --surface: #16131a;
+  --surface-2: #201c24;
+  --border: #2f2836;
+
+  --metal: #8d8069;
+  --metal-dim: #4a4335;
+  --parchment: #cdbfa2;
+  --parchment-bg: #272320;
+
+  --text: #e9e2d4;
+  --muted: #9a9083;
+  --ink-faint: #6d655c;
+
+  --danger: #d9452f;
+  --lethal: #d9452f;
+  --gold: #c9a227;
+
   color-scheme: dark;
 }
 
@@ -26,6 +41,11 @@ body {
   overscroll-behavior: none;
   background: var(--bg);
   color: var(--text);
+}
+
+/* The board is the table the cards lie on. */
+main {
+  background: var(--table);
 }
 
 body {

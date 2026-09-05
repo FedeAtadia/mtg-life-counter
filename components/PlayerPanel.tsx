@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import CommanderDamageOverlay from "./CommanderDamageOverlay";
-import { accentFor, displayName, eliminationReason } from "@/lib/rules";
+import ManaPip from "./ManaPip";
+import { identityOf, trimFor, washFor } from "@/lib/identity";
+import { displayName, eliminationReason } from "@/lib/rules";
 import { useGame } from "@/lib/useGame";
 import { useSteadyHold } from "@/lib/useSteadyHold";
 import type { Player } from "@/lib/types";
@@ -10,32 +12,32 @@ import type { Player } from "@/lib/types";
 const DELTA_CHIP_MS = 1600;
 
 /**
- * Font sizes track the panel's own box, so every seat scales on its own.
- *
- * The caps are deliberately high. A two player game gives each panel roughly
- * half the phone, and a low ceiling there wastes it — this is a number meant to
- * be read from across a table. The width coefficients leave room for three
- * digits plus both hints on the same line, which is the widest the readout ever
- * gets (a negative total, or triple figures).
+ * Font sizes track their own box, so every seat scales on its own. The life
+ * total measures against the art box rather than the whole card, because the
+ * type line above it is no longer free space.
  */
 const SIZE = {
-  name: "min(10cqh, 6cqw, 28px)",
+  // Type line text measures against the card: the strip's own height comes
+  // from this text, so measuring against the strip would be circular and
+  // collapse it to nothing.
+  name: "min(9.5cqh, 6cqw, 26px)",
+  pip: "min(12cqh, 6.5cqw, 28px)",
+  out: "min(7cqh, 4.4cqw, 13px)",
+  action: "min(7.5cqh, 4.6cqw, 15px)",
+  // These live inside the art box, which has a definite height.
   hint: "min(17cqh, 12cqw, 52px)",
-  chip: "min(10cqh, 7cqw, 30px)",
-  action: "min(7cqh, 4.5cqw, 16px)",
+  chip: "min(11cqh, 7cqw, 30px)",
 };
 
 /**
  * The readout is usually two characters wide but has to survive more ("100", or
- * "-15", or a thoroughly beaten "-115"). Sizing every panel for the worst case
- * left a two player game's number at barely a third of its panel, so the width
- * allowance follows the number actually on screen while the height allowance
- * stays put — wider values simply get a smaller share of the width.
+ * a thoroughly beaten "-115"). The width allowance follows the number actually
+ * on screen so a two player game is not sized for a case it never reaches.
  */
 function lifeSizeFor(life: number): string {
   const characters = Math.max(2, String(life).length);
   const widthShare = Math.min(44, Math.round(88 / characters));
-  return `min(38cqh, ${widthShare}cqw, 180px)`;
+  return `min(46cqh, ${widthShare}cqw, 180px)`;
 }
 
 const formatDelta = (value: number) => (value > 0 ? `+${value}` : `${value}`);
@@ -52,7 +54,8 @@ export default function PlayerPanel({
   onToggleDamage,
 }: Props) {
   const { state, dispatch } = useGame();
-  const accent = accentFor(player);
+  const colors = identityOf(player);
+  const trim = trimFor(colors);
   const opponents = state.players.filter((p) => p.id !== player.id);
   const reason = eliminationReason(player, state.format);
   const showCommanderDamage = state.format === "commander";
@@ -84,114 +87,158 @@ export default function PlayerPanel({
     [],
   );
 
-  // One point per tap, then a steady climb while held. Which half you press is
+  // One point per tap, then jumps of ten while held. Which half you press is
   // the only thing that decides the direction.
   const minus = useSteadyHold((points) => applyLife(-points));
   const plus = useSteadyHold((points) => applyLife(points));
 
   return (
     <div
-      className="no-select relative h-full w-full overflow-hidden rounded-2xl border"
-      style={{
-        containerType: "size",
-        borderColor: reason
-          ? "#26262f"
-          : `color-mix(in oklab, ${accent} 32%, #24242f)`,
-      }}
+      className="no-select relative h-full w-full"
+      style={{ containerType: "size" }}
     >
-      {/* Painted separately from the controls so an eliminated player can still
-          be corrected — only the backdrop and readout dim. */}
+      {/* The card itself: painted, never pressed. The tap zones sit above it. */}
       <div
-        className="absolute inset-0"
+        className="pointer-events-none absolute inset-0 flex flex-col gap-[1.2cqh] rounded-[3.5cqh] p-[1.6cqh]"
         style={{
-          background: `linear-gradient(155deg, color-mix(in oklab, ${accent} 26%, #14141d), #0d0d14 78%)`,
-          filter: reason ? "grayscale(0.9) brightness(0.55)" : undefined,
+          background: "var(--border-black)",
+          filter: reason ? "grayscale(0.9) brightness(0.6)" : undefined,
         }}
-      />
+      >
+        <div
+          className="pointer-events-none absolute inset-[1.6cqh] rounded-[2cqh]"
+          style={{
+            boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${trim} 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(0,0,0,0.55)`,
+          }}
+        />
 
-      {/* Tap zones sit underneath the readout, which is pointer-events-none. */}
+        {/* Type line: name at the far end from the centre hub, pips closing it. */}
+        <div
+          className="flex shrink-0 items-center gap-[2cqw] rounded-t-[1.4cqh] px-[2.4cqw] py-[1cqh]"
+          style={{
+            // Kept tight to the leading edge. The name sits at the far end of
+            // the strip from the centre hub, which is what keeps the two apart
+            // — indenting it pushes it back towards the hub, not away.
+            background: `linear-gradient(180deg, color-mix(in oklab, ${trim} 26%, var(--parchment-bg)), var(--parchment-bg))`,
+            boxShadow:
+              "inset 0 1px 0 rgba(255,255,255,0.10), 0 1px 0 rgba(0,0,0,0.5)",
+          }}
+        >
+          <span
+            className="min-w-0 flex-1 truncate font-[family-name:var(--font-display)] font-semibold tracking-wide"
+            style={{ fontSize: SIZE.name, color: "var(--parchment)" }}
+          >
+            {displayName(player)}
+          </span>
+          <span className="flex shrink-0 gap-[0.8cqw]">
+            {colors.length === 0 ? (
+              <ManaPip color="c" size={SIZE.pip} />
+            ) : (
+              colors.map((color) => (
+                <ManaPip key={color} color={color} size={SIZE.pip} />
+              ))
+            )}
+          </span>
+        </div>
+
+        {/* Art box: where the life total lives. */}
+        <div
+          className="relative flex min-h-0 flex-1 items-center justify-center gap-[4cqw] overflow-hidden rounded-b-[1.4cqh]"
+          style={{
+            containerType: "size",
+            background: washFor(colors),
+            boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.6)",
+          }}
+        >
+          <span
+            style={{
+              fontSize: SIZE.hint,
+              color: `color-mix(in oklab, ${trim} 40%, var(--ink-faint))`,
+              lineHeight: 1,
+            }}
+          >
+            &minus;
+          </span>
+          <span
+            className="tnum font-semibold"
+            style={{
+              fontSize: lifeSizeFor(player.life),
+              lineHeight: 0.92,
+              textShadow: "0 2px 10px rgba(0,0,0,0.65)",
+            }}
+          >
+            {player.life}
+          </span>
+          <span
+            style={{
+              fontSize: SIZE.hint,
+              color: `color-mix(in oklab, ${trim} 40%, var(--ink-faint))`,
+              lineHeight: 1,
+            }}
+          >
+            +
+          </span>
+
+          {/* Running tally of the current press, so a hold shows its damage. */}
+          <div
+            className="tnum absolute right-0 bottom-[6cqh] left-0 text-center font-semibold transition-opacity duration-150"
+            style={{
+              fontSize: SIZE.chip,
+              opacity: recent === 0 ? 0 : 1,
+              color: recent < 0 ? "var(--lethal)" : "#6fce93",
+            }}
+          >
+            {formatDelta(recent)}
+          </div>
+        </div>
+      </div>
+
+      {/* Tap zones, above the painted card and below everything interactive. */}
       <button
         type="button"
         aria-label={`${displayName(player)}: lose life. Tap for 1, hold to keep counting`}
-        className="absolute top-0 left-0 h-full w-1/2"
+        className="absolute top-0 left-0 z-10 h-full w-1/2"
         style={{ touchAction: "none" }}
         {...minus}
       />
       <button
         type="button"
         aria-label={`${displayName(player)}: gain life. Tap for 1, hold to keep counting`}
-        className="absolute top-0 right-0 h-full w-1/2"
+        className="absolute top-0 right-0 z-10 h-full w-1/2"
         style={{ touchAction: "none" }}
         {...plus}
       />
 
-      <div
-        className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
-        style={{ opacity: reason ? 0.55 : 1 }}
-      >
-        <div
-          className="absolute top-0 w-full truncate px-3 text-center font-medium tracking-wide text-white/55"
-          style={{
-            fontSize: SIZE.name,
-            // The floor keeps the name clear of the centre hub on small panels:
-            // with five or six players the hub sits on the seam these names run
-            // along, and 3cqh alone put them right under it.
-            paddingTop: "max(3cqh, 16px)",
-          }}
-        >
-          {displayName(player)}
-        </div>
-
-        <div className="flex items-center gap-[4cqw]">
-          <span className="text-white/25" style={{ fontSize: SIZE.hint }}>
-            &minus;
-          </span>
-          <span
-            className="tnum leading-none font-semibold"
-            style={{ fontSize: lifeSizeFor(player.life) }}
-          >
-            {player.life}
-          </span>
-          <span className="text-white/25" style={{ fontSize: SIZE.hint }}>
-            +
-          </span>
-        </div>
-
-        {/* Running tally of the current press, so you can see what a hold has
-            actually done to you. Fades once you stop. */}
-        <div
-          className="tnum absolute right-0 bottom-[13cqh] left-0 text-center font-semibold transition-opacity duration-150"
-          style={{
-            fontSize: SIZE.chip,
-            opacity: recent === 0 ? 0 : 1,
-            color: recent < 0 ? "var(--danger)" : "#5fcf8a",
-          }}
-        >
-          {formatDelta(recent)}
-        </div>
-      </div>
-
       {reason && (
         <div
-          className="pointer-events-none absolute top-[3cqh] left-[3cqw] rounded-full border px-[2.5cqw] py-[1cqh] font-semibold tracking-widest uppercase"
+          className="pointer-events-none absolute top-[5.5cqh] left-[3.4cqw] z-20 rounded-full border px-[2.5cqw] py-[1cqh] font-semibold tracking-widest uppercase"
           style={{
-            fontSize: SIZE.action,
-            borderColor: "color-mix(in oklab, var(--danger) 55%, transparent)",
-            color: "color-mix(in oklab, var(--danger) 80%, white)",
+            fontSize: SIZE.out,
+            borderColor: "color-mix(in oklab, var(--lethal) 60%, transparent)",
+            color: "color-mix(in oklab, var(--lethal) 75%, white)",
+            background: "rgba(20,8,6,0.85)",
           }}
         >
           Out &middot; {reason}
         </div>
       )}
 
+      {/* The power/toughness box, where a card keeps its numbers in the corner. */}
       {showCommanderDamage && (
         <button
           type="button"
           onClick={onToggleDamage}
-          className="absolute bottom-[3cqh] left-1/2 -translate-x-1/2 rounded-full border border-white/15 bg-black/35 px-[3cqw] py-[1.5cqh] font-medium tracking-wide text-white/70 uppercase active:bg-black/60"
-          style={{ fontSize: SIZE.action }}
+          aria-label={`${displayName(player)}: commander damage`}
+          className="absolute right-[3.4cqw] bottom-[3cqh] z-20 rounded-[1cqh] px-[2.6cqw] py-[1.4cqh] font-[family-name:var(--font-display)] font-semibold tracking-widest uppercase"
+          style={{
+            fontSize: SIZE.action,
+            color: "var(--parchment)",
+            background: "linear-gradient(180deg, #2f2a25, #1c1815)",
+            boxShadow:
+              "inset 0 1px 0 rgba(255,255,255,0.14), inset 0 0 0 1px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.6)",
+          }}
         >
-          Cmdr damage
+          Cmdr
         </button>
       )}
 
