@@ -9,14 +9,34 @@ import type { Player } from "@/lib/types";
 
 const DELTA_CHIP_MS = 1600;
 
-/** Font sizes track the panel's own box, so every seat scales on its own. */
+/**
+ * Font sizes track the panel's own box, so every seat scales on its own.
+ *
+ * The caps are deliberately high. A two player game gives each panel roughly
+ * half the phone, and a low ceiling there wastes it — this is a number meant to
+ * be read from across a table. The width coefficients leave room for three
+ * digits plus both hints on the same line, which is the widest the readout ever
+ * gets (a negative total, or triple figures).
+ */
 const SIZE = {
-  name: "min(9cqh, 6cqw, 22px)",
-  life: "min(34cqh, 42cqw, 150px)",
-  hint: "min(14cqh, 9cqw, 40px)",
-  chip: "min(9cqh, 7cqw, 24px)",
-  action: "min(7cqh, 4.5cqw, 15px)",
+  name: "min(10cqh, 6cqw, 30px)",
+  hint: "min(20cqh, 14cqw, 64px)",
+  chip: "min(10cqh, 7cqw, 32px)",
+  action: "min(7cqh, 4.5cqw, 16px)",
 };
+
+/**
+ * The readout is usually two characters wide but has to survive more ("100", or
+ * "-15", or a thoroughly beaten "-115"). Sizing every panel for the worst case
+ * left a two player game's number at barely a third of its panel, so the width
+ * allowance follows the number actually on screen while the height allowance
+ * stays put — wider values simply get a smaller share of the width.
+ */
+function lifeSizeFor(life: number): string {
+  const characters = Math.max(2, String(life).length);
+  const widthShare = Math.min(48, Math.round(96 / characters));
+  return `min(42cqh, ${widthShare}cqw, 200px)`;
+}
 
 const formatDelta = (value: number) => (value > 0 ? `+${value}` : `${value}`);
 
@@ -122,7 +142,7 @@ export default function PlayerPanel({
           </span>
           <span
             className="tnum leading-none font-semibold"
-            style={{ fontSize: SIZE.life }}
+            style={{ fontSize: lifeSizeFor(player.life) }}
           >
             {player.life}
           </span>
