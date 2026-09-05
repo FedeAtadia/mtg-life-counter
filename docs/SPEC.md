@@ -88,8 +88,19 @@ Covered by `lib/gameReducer.test.ts`, `components/CommanderDamageOverlay.test.ts
   ignored.
 - **CMDR-8** One damage panel is open at a time. It closes on Done, on the
   backdrop, on its own button, and when the player it belongs to leaves.
-- **CMDR-9** Tiles stay roughly square as the table grows: up to three
-  opponents get a column each, four get two columns, five get three.
+- **CMDR-9** Every row of tiles fills the width. Up to three opponents share a
+  single row; four split two and two; five split three and two. No tile is ever
+  left alone beside an empty cell — a three-column grid did that to five
+  opponents, and the hole is what the eye goes to.
+- **CMDR-10** The panel opens centred over the whole board rather than inside
+  its own seat, so the counters get the width of the device instead of the
+  width of one panel. Entering commander damage is a deliberate, occasional
+  act — unlike a life total, which has to stay under the thumb.
+- **CMDR-11** It is turned to face the player whose damage it is. Centring it
+  without rotating would leave it sideways to four seats out of six, which
+  would cost more legibility than the extra size buys.
+- **CMDR-12** It is reachable only in Commander, and a format change while it
+  is open closes it.
 
 ## OUT — Elimination
 

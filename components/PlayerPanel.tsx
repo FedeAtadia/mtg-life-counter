@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import CommanderDamageOverlay from "./CommanderDamageOverlay";
 import ManaPip from "./ManaPip";
 import { identityOf, trimFor, washFor } from "@/lib/identity";
 import { displayName, eliminationReason } from "@/lib/rules";
@@ -44,19 +43,13 @@ const formatDelta = (value: number) => (value > 0 ? `+${value}` : `${value}`);
 
 interface Props {
   player: Player;
-  damageOpen: boolean;
   onToggleDamage: () => void;
 }
 
-export default function PlayerPanel({
-  player,
-  damageOpen,
-  onToggleDamage,
-}: Props) {
+export default function PlayerPanel({ player, onToggleDamage }: Props) {
   const { state, dispatch } = useGame();
   const colors = identityOf(player);
   const trim = trimFor(colors);
-  const opponents = state.players.filter((p) => p.id !== player.id);
   const reason = eliminationReason(player, state.format);
   const showCommanderDamage = state.format === "commander";
 
@@ -240,14 +233,6 @@ export default function PlayerPanel({
         >
           Cmdr
         </button>
-      )}
-
-      {showCommanderDamage && damageOpen && (
-        <CommanderDamageOverlay
-          player={player}
-          opponents={opponents}
-          onClose={onToggleDamage}
-        />
       )}
     </div>
   );

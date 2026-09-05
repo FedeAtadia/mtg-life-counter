@@ -101,13 +101,15 @@ describe("the phone it sits on", () => {
 });
 
 describe("the commander damage panel", () => {
-  it("opens over the seat it belongs to", () => {
+  it("opens over the board, naming the seat it belongs to", () => {
+    // It no longer lives inside the seat, so the name on it is the only thing
+    // saying whose damage is being counted.
     renderBoard(createGame("commander", 4));
 
     openDamage("Player 1");
 
     expect(
-      within(panelFor("Player 1")).getByText("Damage taken from"),
+      screen.getByRole("dialog", { name: "Commander damage for Player 1" }),
     ).toBeInTheDocument();
   });
 
@@ -130,7 +132,7 @@ describe("the commander damage panel", () => {
 
     expect(damagePanelsOpen()).toBe(1);
     expect(
-      within(panelFor("Player 3")).getByText("Damage taken from"),
+      screen.getByRole("dialog", { name: "Commander damage for Player 3" }),
     ).toBeInTheDocument();
   });
 
