@@ -206,16 +206,17 @@ describe("changing the table size", () => {
     fireEvent.click(within(sheet).getByLabelText("Remove Player 2"));
     fireEvent.click(within(sheet).getByText("Done"));
 
-    const panel = panelFor("Player 1");
     fireEvent.click(
-      within(panel).getByLabelText("Player 1: commander damage"),
+      within(panelFor("Player 1")).getByLabelText("Player 1: commander damage"),
     );
 
+    // The panel now opens over the board, so the counters are found at the
+    // top level rather than inside the seat.
     expect(
-      within(panel).queryByLabelText("Add commander damage from Player 2"),
+      screen.queryByLabelText("Add commander damage from Player 2"),
     ).toBeNull();
     expect(
-      within(panel).getByLabelText("Add commander damage from Player 3"),
+      screen.getByLabelText("Add commander damage from Player 3"),
     ).toBeInTheDocument();
   });
 });

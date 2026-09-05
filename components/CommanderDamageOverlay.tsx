@@ -4,17 +4,18 @@ import { identityOf, trimFor, washFor } from "@/lib/identity";
 import { LETHAL_COMMANDER_DAMAGE, displayName } from "@/lib/rules";
 import { useGame } from "@/lib/useGame";
 import { useSteadyHold } from "@/lib/useSteadyHold";
+import type { Rotation } from "@/lib/seatLayout";
 import type { Player } from "@/lib/types";
 
 /**
- * Chrome is sized against the overlay; tile contents are sized against their
- * own tile (see DamageTile). Sizing tile text off the overlay is what used to
- * break this at high player counts: the tiles got smaller as opponents were
- * added but their text did not, so five tiles overflowed.
+ * Chrome is sized against the panel; tile contents are sized against their own
+ * tile (see DamageTile). Sizing tile text off the panel is what used to break
+ * this at high player counts: the tiles got smaller as opponents were added but
+ * their text did not, so five tiles overflowed.
  */
 const SIZE = {
-  heading: "min(6.5cqh, 4cqw, 15px)",
-  done: "min(7cqh, 4.5cqw, 16px)",
+  heading: "min(6.5cqh, 4cqw, 20px)",
+  done: "min(7cqh, 4.5cqw, 19px)",
 };
 
 /** Columns that keep tiles as square as possible in a wide, short panel. */
@@ -23,32 +24,53 @@ function columnsFor(opponentCount: number): number {
   return opponentCount === 4 ? 2 : 3;
 }
 
+/**
+ * How big the panel is in its own frame, before it is turned.
+ *
+ * A rotated element keeps its original box, so a panel turned a quarter has to
+ * be authored with its width and height swapped — the same trick PlayerSeat
+ * uses. Written in viewport units rather than container units because this
+ * floats over the whole board rather than sitting in a cell.
+ */
+function frameFor(rotation: Rotation) {
+  const vertical = rotation === 90 || rotation === -90;
+  return {
+    width: vertical ? "min(90dvh, 42rem)" : "min(92dvw, 42rem)",
+    height: vertical ? "min(86dvw, 26rem)" : "min(64dvh, 26rem)",
+  };
+}
+
 interface Props {
   player: Player;
   opponents: Player[];
+  /** The rotation of the seat this belongs to, so it faces its own player. */
+  rotation: Rotation;
   onClose: () => void;
 }
 
 /**
- * The card's textbox: rules text, in the place a card keeps it. Rendered inside
- * the player's panel so it inherits that seat's rotation.
+ * The card's textbox, lifted off the card and laid over the whole board.
+ *
+ * Entering commander damage is a deliberate, occasional act, so it can have the
+ * width of the device rather than the width of one seat — which is most of what
+ * makes the counters readable. A life total cannot do this: that has to stay
+ * under the thumb, in the seat, all game.
+ *
+ * It is still turned to face its own player. Centring without rotating would
+ * leave it sideways to four seats out of six, costing more legibility than the
+ * extra size buys.
  */
 export default function CommanderDamageOverlay({
   player,
   opponents,
+  rotation,
   onClose,
 }: Props) {
   const columns = columnsFor(opponents.length);
+  const frame = frameFor(rotation);
 
   return (
-    <div
-      className="no-select absolute inset-0 z-30 rounded-[3.5cqh]"
-      style={{
-        containerType: "size",
-        background: "linear-gradient(180deg, #211d19, #17140f)",
-        boxShadow: "inset 0 0 0 1px var(--metal-dim)",
-      }}
-    >
+    <div className="no-select fixed inset-0 z-40 flex items-center justify-center overflow-hidden bg-black/75 p-3">
       {/* Tapping the backdrop closes too, so there are two ways out. */}
       <button
         type="button"
@@ -58,7 +80,21 @@ export default function CommanderDamageOverlay({
         onClick={onClose}
       />
 
-      <div className="relative flex h-full w-full flex-col gap-[1.8cqh] p-[2.6cqh]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Commander damage for ${displayName(player)}`}
+        className="relative flex shrink-0 flex-col gap-[1.8cqh] rounded-[14px] p-[2.6cqh]"
+        style={{
+          width: frame.width,
+          height: frame.height,
+          containerType: "size",
+          transform: `rotate(${rotation}deg)`,
+          background: "linear-gradient(180deg, #211d19, #17140f)",
+          boxShadow:
+            "inset 0 0 0 1px var(--metal-dim), 0 18px 50px rgba(0,0,0,0.7)",
+        }}
+      >
         <span
           className="shrink-0 text-center font-[family-name:var(--font-display)] font-semibold tracking-[0.18em] uppercase"
           style={{ fontSize: SIZE.heading, color: "var(--metal)" }}
@@ -110,9 +146,9 @@ export default function CommanderDamageOverlay({
  * opponent's own colours, which is how you find someone at a glance.
  */
 const TILE = {
-  name: "min(26cqh, 16cqw, 40px)",
-  value: "min(44cqh, 38cqw, 150px)",
-  hint: "min(24cqh, 12cqw, 56px)",
+  name: "min(22cqh, 15cqw, 34px)",
+  value: "min(46cqh, 40cqw, 170px)",
+  hint: "min(24cqh, 12cqw, 60px)",
 };
 
 function DamageTile({
