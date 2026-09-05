@@ -30,7 +30,7 @@ files that hold it up.
 - **FMT-1** Two formats are supported: Standard and Commander.
 - **FMT-2** Starting life is 40 in Commander and 20 in Standard.
 - **FMT-3** Changing format resets every life total and every commander damage
-  counter, and restarts the clock.
+  counter, and puts the clock back to zero and stopped (TIMER-5).
 - **FMT-4** Selecting the format already in play changes nothing.
 - **FMT-5** Changing format takes two taps: the first arms it and shows a
   warning, the second commits. Arming clears itself after 3.5 seconds.
@@ -206,8 +206,9 @@ Covered by `lib/gameReducer.test.ts`, `components/CommanderDamageOverlay.test.ts
 
 ## TIMER — The game clock
 
-*Enforced by `lib/timer.ts`, `lib/useElapsed.ts`. Covered by
-`lib/timer.test.ts`, `lib/useElapsed.test.ts`, `lib/gameReducer.test.ts`,
+*Enforced by `lib/timer.ts`, `lib/useElapsed.ts`, `components/CenterHub.tsx`.
+Covered by `lib/timer.test.ts`, `lib/useElapsed.test.ts`,
+`lib/gameReducer.test.ts`, `components/CenterHub.test.tsx`,
 `components/SettingsSheet.test.tsx`.*
 
 - **TIMER-1** Elapsed time is derived from timestamps, not counted in ticks, so
@@ -216,12 +217,20 @@ Covered by `lib/gameReducer.test.ts`, `components/CommanderDamageOverlay.test.ts
 - **TIMER-2** Below an hour the readout is `m:ss`; from an hour it is `h:mm`.
 - **TIMER-3** Pause banks what has run so far; resume continues from the banked
   total. Repeated pause/resume cycles do not drift.
-- **TIMER-4** A fresh board starts its clock after mount. A saved game comes
-  back with the timer exactly as it was saved — a paused game does not silently
-  resume.
-- **TIMER-5** Reset and a format change both restart the clock from zero.
+- **TIMER-4** A fresh board waits to be started: it comes up at 0:00 with the
+  clock stopped. A saved game comes back with the timer exactly as it was saved
+  — a paused game does not silently resume.
+- **TIMER-5** Reset, a new game and a format change all put the clock back to
+  zero and stopped, so a game is started when the table is ready rather than
+  while the decks are still being shuffled.
 - **TIMER-6** The readout repaints once a second, and only every 15 seconds
-  once the seconds are hidden. A paused clock schedules nothing.
+  once the seconds are hidden. A stopped clock schedules nothing.
+- **TIMER-7** A clock that has never run — zero on the readout, and stopped —
+  carries a Start button at the centre of the board. Starting it is what takes
+  the button away: a game already under way has no use for it.
+- **TIMER-8** The one timer control in settings reads Start before the clock
+  has ever run, Pause while it is running, and Resume once there is time
+  banked.
 
 ## SAVE — Persistence
 
@@ -251,8 +260,8 @@ Covered by `lib/gameReducer.test.ts`, `components/CommanderDamageOverlay.test.ts
 `lib/gameReducer.test.ts`, `components/SettingsSheet.test.tsx`.*
 
 - **RESET-1** Reset takes two taps, like a format change.
-- **RESET-2** It restores starting life, clears all commander damage and
-  restarts the clock.
+- **RESET-2** It restores starting life, clears all commander damage and puts
+  the clock back to zero, waiting to be started again (TIMER-5).
 - **RESET-3** It keeps the seats, the names and the colour identities — those
   are not part of a life total.
 - **RESET-4** It closes the settings sheet, because the game has started over.
@@ -272,6 +281,29 @@ by `lib/gameReducer.test.ts`, `lib/useGame.test.tsx`.*
   not repaint every seat, and `dispatch` keeps a stable identity.
 - **STATE-6** `useGame` outside a provider throws rather than rendering a board
   with no state.
+
+## AWAKE — Keeping the screen lit
+
+*Enforced by `lib/useWakeLock.ts`, `components/GameBoard.tsx`. Covered by
+`lib/useWakeLock.test.ts`, `components/SettingsSheet.test.tsx`.*
+
+A phone left face-up in the middle of the table is not being touched, so it
+dims and locks in the middle of somebody's turn. A screen wake lock is the only
+thing a page can do about that.
+
+- **AWAKE-1** While the board is on screen the app holds a screen wake lock, so
+  the phone stays lit through a turn nobody touches it during.
+- **AWAKE-2** It is asked for again every time the page becomes visible, because
+  the browser drops the lock whenever the tab is hidden or the phone is locked.
+- **AWAKE-3** A browser with no Wake Lock API plays exactly as it did before:
+  nothing is called and nothing throws.
+- **AWAKE-4** A refused lock — battery saver, an insecure origin — is recorded
+  and left alone until the page next becomes visible. It is never retried in a
+  loop.
+- **AWAKE-5** The lock is released when the board goes away, including when the
+  board unmounts while the request is still in flight.
+- **AWAKE-6** Settings says which of the three is happening, so a screen that
+  still goes black has an explanation rather than looking like a bug.
 
 ## PLAT — Platform
 
@@ -318,6 +350,9 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   here proves it.
 - **The buzz.** jsdom has no `navigator.vibrate`. The feature test guarding it
   is covered; the buzz itself (HOLD-12) is checked by hand on a device.
+- **The screen staying lit.** `navigator.wakeLock` is stubbed in the tests, so
+  what is covered is the asking, the asking again and the release — not that a
+  real phone stays awake. AWAKE-1 is checked by hand on a device, like the buzz.
 - **Touch behaviour.** `touch-action: none` and the absence of scroll-on-hold
   are not testable here.
 - **Render scope.** The clock is kept in the centre hub so a passing second

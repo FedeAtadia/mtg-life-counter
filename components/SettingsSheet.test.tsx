@@ -2,7 +2,9 @@ import { act, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createGame } from "@/lib/gameReducer";
 import { MAX_NAME_LENGTH } from "@/lib/rules";
-import { lifeOn, panelFor, renderBoard } from "../test/harness";
+import { startedTimerAt } from "@/lib/timer";
+import { hub, lifeOn, openSettings, panelFor, renderBoard } from "../test/harness";
+import { removeWakeLock, stubWakeLock } from "../test/wakeLock";
 
 const T0 = 1_700_000_000_000;
 
@@ -15,15 +17,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
 });
-
-/** The centre hub, which is both the game clock and the way in. */
-const hub = () => screen.getByLabelText(/Game settings/);
-
-function openSettings() {
-  fireEvent.click(hub());
-  return screen.getByRole("heading", { name: "Game settings" })
-    .parentElement!.parentElement as HTMLElement;
-}
 
 const sheetOpen = () =>
   screen.queryByRole("heading", { name: "Game settings" }) !== null;
@@ -59,16 +52,33 @@ describe("getting in and out", () => {
 });
 
 describe("the game clock", () => {
+  /** A game already under way. A fresh board waits to be started (TIMER-4). */
+  const underWay = () => createGame("commander", 4, startedTimerAt(T0));
+
   it("counts up on the hub while the game runs", () => {
-    renderBoard();
+    renderBoard(underWay());
 
     act(() => vi.advanceTimersByTime(65_000));
 
     expect(hub()).toHaveAccessibleName("Game settings. Elapsed 1:05");
   });
 
-  it("pauses and resumes, banking the time in between", () => {
+  it("offers Start until the clock has run, then Pause and Resume", () => {
+    // One control, three labels (TIMER-8). Resume on a clock that has never
+    // run would be a promise it cannot keep — there is nothing to resume.
     renderBoard();
+    const sheet = openSettings();
+
+    fireEvent.click(within(sheet).getByText("Start"));
+    act(() => vi.advanceTimersByTime(5_000));
+    expect(hub()).toHaveAccessibleName("Game settings. Elapsed 0:05");
+
+    fireEvent.click(within(sheet).getByText("Pause"));
+    expect(within(sheet).getByText("Resume")).toBeInTheDocument();
+  });
+
+  it("pauses and resumes, banking the time in between", () => {
+    renderBoard(underWay());
     act(() => vi.advanceTimersByTime(30_000));
 
     const sheet = openSettings();
@@ -361,10 +371,10 @@ describe("resetting the game", () => {
     ).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("restarts the clock", () => {
+  it("puts the clock back to zero, waiting to be started again", () => {
     // Seeded with a clock already running: a saved game comes back with the
     // timer exactly as it was saved, so a stopped one would stay stopped here.
-    renderBoard(createGame("commander", 2, { startedAt: T0, elapsedMs: 0 }));
+    renderBoard(createGame("commander", 2, startedTimerAt(T0)));
     act(() => vi.advanceTimersByTime(90_000));
     expect(hub()).toHaveAccessibleName("Game settings. Elapsed 1:30");
 
@@ -372,6 +382,50 @@ describe("resetting the game", () => {
     fireEvent.click(within(sheet).getByText(/Reset game/));
     fireEvent.click(within(sheet).getByText(/Tap again to reset/));
 
-    expect(hub()).toHaveAccessibleName("Game settings. Elapsed 0:00");
+    // And it stays there: the next game starts when the table is ready.
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(hub()).toHaveAccessibleName(
+      "Game settings. Elapsed 0:00, not started",
+    );
+  });
+});
+
+describe("the screen going dark", () => {
+  afterEach(removeWakeLock);
+
+  /** Opens settings on a board that has had its answer from the browser. */
+  async function noteInSettings() {
+    renderBoard();
+    // The lock is asked for in a mount effect, and answered by a promise.
+    await act(async () => {});
+    return openSettings();
+  }
+
+  it("says when the screen is being held lit", async () => {
+    stubWakeLock();
+
+    const sheet = await noteInSettings();
+
+    expect(within(sheet).getByText(/stays lit/)).toBeInTheDocument();
+  });
+
+  it("says when the browser has no way to keep it lit", async () => {
+    // No stub: a browser with no Wake Lock API at all. A screen that still
+    // goes black needs to say why, or it reads as the app being broken.
+    const sheet = await noteInSettings();
+
+    expect(
+      within(sheet).getByText(/cannot keep the screen lit/),
+    ).toBeInTheDocument();
+  });
+
+  it("says when the browser refused to", async () => {
+    stubWakeLock({ refuse: true });
+
+    const sheet = await noteInSettings();
+
+    expect(
+      within(sheet).getByText(/would not keep the screen lit/),
+    ).toBeInTheDocument();
   });
 });

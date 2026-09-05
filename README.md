@@ -153,6 +153,35 @@ after mount, never during render, so the prerendered HTML and the first client
 render always agree; anything read back goes through `parseGameState` in
 `lib/storage.ts`, which rejects junk and repairs damage maps.
 
+### The clock
+
+Elapsed time is derived from timestamps rather than counted in ticks
+(`lib/timer.ts`), so locking the phone, backgrounding the app or reloading all
+keep the right total.
+
+A board comes up at 0:00 with the clock stopped. The Start button at the centre
+of the board is what sets it running, and it takes itself away once the game is
+under way — a game already being played has no use for it. Reset and a format
+change put the clock back to zero and stopped, so the next game is timed from
+the moment the table is ready rather than from the moment somebody cleared the
+totals.
+
+A clock that has never run is not stored as a flag: it is simply a stopped
+clock with nothing on it (`hasStarted`), which is why saved games written
+before the button existed still read correctly.
+
+### Keeping the screen lit
+
+`lib/useWakeLock.ts` holds a screen wake lock while the board is on screen, so
+a phone lying face-up through somebody else's turn does not dim and lock. The
+browser hands the lock back every time the page is hidden, so it is asked for
+again whenever the page becomes visible rather than once at mount.
+
+There is no permission prompt for this: the request is granted, refused
+(battery saver, usually), or the API is not there at all — iOS before Safari
+16.4, or any insecure origin. All three say so in the settings sheet, because a
+screen that still goes black reads as a broken app unless it explains itself.
+
 ### Music
 
 The settings sheet links out to YouTube or Spotify rather than playing anything
