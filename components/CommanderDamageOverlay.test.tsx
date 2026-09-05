@@ -1,12 +1,23 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createGame } from "@/lib/gameReducer";
-import { HOLD_DELAY_MS, STEP_SIZE } from "@/lib/holdRate";
+import { NOTCH_POINTS } from "@/lib/holdSlider";
 import { LETHAL_COMMANDER_DAMAGE } from "@/lib/rules";
 import { SEAT_LAYOUTS } from "@/lib/seatLayout";
-import { hold, lifeOn, panelFor, renderBoard, tap, tapTimes } from "../test/harness";
+import {
+  holdStill,
+  lifeOn,
+  panelFor,
+  renderBoard,
+  rotationOf,
+  slide,
+  tap,
+  tapTimes,
+} from "../test/harness";
 
 const T0 = 1_700_000_000_000;
+
+const advance = (ms: number) => vi.advanceTimersByTime(ms);
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -205,16 +216,63 @@ describe("commander damage is real damage", () => {
     expect(lifeOn(panelFor("Player 1"))).toBe(30);
   });
 
-  it("counts a held press in tens, the same as a life total does", () => {
+  it("counts a slide in fives, the same as a life total does (HOLD-5)", () => {
+    // A press has to behave the same wherever the thumb lands, or the tile and
+    // the seat behind it start disagreeing about what a gesture meant.
     renderBoard(createGame("commander", 4));
     const panel = openDamage("Player 1");
 
-    hold(addFrom(panel, "Player 2"), HOLD_DELAY_MS, (ms) =>
-      vi.advanceTimersByTime(ms),
-    );
+    slide(addFrom(panel, "Player 2"), {
+      notches: 2,
+      rotation: rotationOf(4, 0),
+      advance,
+    });
 
-    expect(damageFrom(panel, "Player 2")).toBe(STEP_SIZE);
-    expect(lifeOn(panelFor("Player 1"))).toBe(40 - STEP_SIZE);
+    expect(damageFrom(panel, "Player 2")).toBe(2 * NOTCH_POINTS);
+    expect(lifeOn(panelFor("Player 1"))).toBe(40 - 2 * NOTCH_POINTS);
+  });
+
+  it("counts nothing for a press held over a tile and never slid (HOLD-2)", () => {
+    renderBoard(createGame("commander", 4));
+    const panel = openDamage("Player 1");
+
+    holdStill(addFrom(panel, "Player 2"), advance);
+
+    expect(damageFrom(panel, "Player 2")).toBe(0);
+    expect(lifeOn(panelFor("Player 1"))).toBe(40);
+  });
+
+  it("cannot deal damage on the half that removes it (HOLD-13)", () => {
+    // Slide past what a counter holds and part of the way back. The gesture
+    // must not pay out the points it was never allowed to take, which on this
+    // half of the tile would land as damage on the player removing it.
+    renderBoard(createGame("commander", 4));
+    const panel = openDamage("Player 1");
+    tapTimes(addFrom(panel, "Player 2"), 5);
+    expect(lifeOn(panelFor("Player 1"))).toBe(35);
+
+    slide(removeFrom(panel, "Player 2"), {
+      notches: [3, 1],
+      rotation: rotationOf(4, 0),
+      advance,
+    });
+
+    expect(damageFrom(panel, "Player 2")).toBe(0);
+    expect(lifeOn(panelFor("Player 1"))).toBe(40);
+  });
+
+  it("stays a no-op when there is no damage to remove (CMDR-3)", () => {
+    renderBoard(createGame("commander", 4));
+    const panel = openDamage("Player 1");
+
+    slide(removeFrom(panel, "Player 2"), {
+      notches: [4, 2, 0],
+      rotation: rotationOf(4, 0),
+      advance,
+    });
+
+    expect(damageFrom(panel, "Player 2")).toBe(0);
+    expect(lifeOn(panelFor("Player 1"))).toBe(40);
   });
 
   it("does not take damage off the player who dealt it", () => {

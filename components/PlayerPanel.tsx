@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import HoldHint from "./HoldHint";
 import ManaPip from "./ManaPip";
 import { identityOf, trimFor, washFor } from "@/lib/identity";
 import { displayName, eliminationReason } from "@/lib/rules";
 import { useGame } from "@/lib/useGame";
-import { useSteadyHold } from "@/lib/useSteadyHold";
+import { useHoldSlider } from "@/lib/useHoldSlider";
+import type { Rotation } from "@/lib/seatLayout";
 import type { Player } from "@/lib/types";
 
 const DELTA_CHIP_MS = 1600;
@@ -43,10 +45,16 @@ const formatDelta = (value: number) => (value > 0 ? `+${value}` : `${value}`);
 
 interface Props {
   player: Player;
+  /** The seat this panel sits in, so a slide knows which way is up for them. */
+  rotation: Rotation;
   onToggleDamage: () => void;
 }
 
-export default function PlayerPanel({ player, onToggleDamage }: Props) {
+export default function PlayerPanel({
+  player,
+  rotation,
+  onToggleDamage,
+}: Props) {
   const { state, dispatch } = useGame();
   const colors = identityOf(player);
   const trim = trimFor(colors);
@@ -80,10 +88,11 @@ export default function PlayerPanel({ player, onToggleDamage }: Props) {
     [],
   );
 
-  // One point per tap, then jumps of ten while held. Which half you press is
-  // the only thing that decides the direction.
-  const minus = useSteadyHold((points) => applyLife(-points));
-  const plus = useSteadyHold((points) => applyLife(points));
+  // One point per tap; hold for a second and it becomes a slider worth five a
+  // notch. Which half you press is the only thing that decides the direction —
+  // the slide only ever says how far (HOLD-9).
+  const minus = useHoldSlider(rotation, (points) => applyLife(-points));
+  const plus = useHoldSlider(rotation, (points) => applyLife(points));
 
   return (
     <div
@@ -143,15 +152,12 @@ export default function PlayerPanel({ player, onToggleDamage }: Props) {
             boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.6)",
           }}
         >
-          <span
-            style={{
-              fontSize: SIZE.hint,
-              color: `color-mix(in oklab, ${trim} 40%, var(--ink-faint))`,
-              lineHeight: 1,
-            }}
-          >
-            &minus;
-          </span>
+          <HoldHint
+            sign="minus"
+            armed={minus.armed}
+            size={SIZE.hint}
+            color={`color-mix(in oklab, ${trim} 40%, var(--ink-faint))`}
+          />
           <span
             className="tnum font-semibold"
             style={{
@@ -162,17 +168,15 @@ export default function PlayerPanel({ player, onToggleDamage }: Props) {
           >
             {player.life}
           </span>
-          <span
-            style={{
-              fontSize: SIZE.hint,
-              color: `color-mix(in oklab, ${trim} 40%, var(--ink-faint))`,
-              lineHeight: 1,
-            }}
-          >
-            +
-          </span>
+          <HoldHint
+            sign="plus"
+            armed={plus.armed}
+            size={SIZE.hint}
+            color={`color-mix(in oklab, ${trim} 40%, var(--ink-faint))`}
+          />
 
-          {/* Running tally of the current press, so a hold shows its damage. */}
+          {/* Running tally of the exchange, so a slide shows what it is
+              dialling in before the finger lifts (LIFE-4). */}
           <div
             className="tnum absolute right-0 bottom-[6cqh] left-0 text-center font-semibold transition-opacity duration-150"
             style={{
@@ -189,17 +193,17 @@ export default function PlayerPanel({ player, onToggleDamage }: Props) {
       {/* Tap zones, above the painted card and below everything interactive. */}
       <button
         type="button"
-        aria-label={`${displayName(player)}: lose life. Tap for 1, hold to keep counting`}
+        aria-label={`${displayName(player)}: lose life. Tap for 1, hold then slide for 5 at a time`}
         className="absolute top-0 left-0 z-10 h-full w-1/2"
         style={{ touchAction: "none" }}
-        {...minus}
+        {...minus.handlers}
       />
       <button
         type="button"
-        aria-label={`${displayName(player)}: gain life. Tap for 1, hold to keep counting`}
+        aria-label={`${displayName(player)}: gain life. Tap for 1, hold then slide for 5 at a time`}
         className="absolute top-0 right-0 z-10 h-full w-1/2"
         style={{ touchAction: "none" }}
-        {...plus}
+        {...plus.handlers}
       />
 
       {reason && (

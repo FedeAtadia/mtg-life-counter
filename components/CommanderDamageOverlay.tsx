@@ -1,9 +1,10 @@
 "use client";
 
+import HoldHint from "./HoldHint";
 import { identityOf, trimFor, washFor } from "@/lib/identity";
 import { LETHAL_COMMANDER_DAMAGE, displayName } from "@/lib/rules";
 import { useGame } from "@/lib/useGame";
-import { useSteadyHold } from "@/lib/useSteadyHold";
+import { useHoldSlider } from "@/lib/useHoldSlider";
 import type { Rotation } from "@/lib/seatLayout";
 import type { Player } from "@/lib/types";
 
@@ -123,6 +124,7 @@ export default function CommanderDamageOverlay({
                   key={opponent.id}
                   targetId={player.id}
                   source={opponent}
+                  rotation={rotation}
                   value={player.commanderDamage[opponent.id] ?? 0}
                 />
               ))}
@@ -168,10 +170,13 @@ const TILE = {
 function DamageTile({
   targetId,
   source,
+  rotation,
   value,
 }: {
   targetId: string;
   source: Player;
+  /** The panel is turned to face its player, so a slide is turned with it. */
+  rotation: Rotation;
   value: number;
 }) {
   const { dispatch } = useGame();
@@ -187,9 +192,15 @@ function DamageTile({
       delta,
     });
 
-  // Same press behaviour as a life total: one per tap, jumps of ten while held.
-  const minus = useSteadyHold((points) => adjust(-points));
-  const plus = useSteadyHold((points) => adjust(points));
+  // Same press behaviour as a life total: one per tap, and a slider worth five
+  // a notch once held (HOLD-5).
+  //
+  // Removing is capped at what the counter is actually holding. A counter has a
+  // floor at zero (CMDR-3) but a life total does not, so a slide that ran past
+  // that floor would think itself owed points it was never given, and pay them
+  // back as damage the moment the finger came back (HOLD-13).
+  const minus = useHoldSlider(rotation, (points) => adjust(-points), value);
+  const plus = useHoldSlider(rotation, (points) => adjust(points));
 
   return (
     <div
@@ -207,14 +218,14 @@ function DamageTile({
         aria-label={`Remove commander damage from ${displayName(source)}`}
         className="absolute top-0 left-0 h-full w-1/2"
         style={{ touchAction: "none" }}
-        {...minus}
+        {...minus.handlers}
       />
       <button
         type="button"
         aria-label={`Add commander damage from ${displayName(source)}`}
         className="absolute top-0 right-0 h-full w-1/2"
         style={{ touchAction: "none" }}
-        {...plus}
+        {...plus.handlers}
       />
 
       <div className="pointer-events-none flex w-full flex-col items-center px-[4cqw]">
@@ -225,9 +236,12 @@ function DamageTile({
           {displayName(source)}
         </span>
         <div className="flex items-baseline gap-[8cqw]">
-          <span style={{ fontSize: TILE.hint, color: "#4d463d", lineHeight: 1 }}>
-            &minus;
-          </span>
+          <HoldHint
+            sign="minus"
+            armed={minus.armed}
+            size={TILE.hint}
+            color="#4d463d"
+          />
           <span
             className="tnum leading-none font-semibold"
             style={{
@@ -237,9 +251,12 @@ function DamageTile({
           >
             {value}
           </span>
-          <span style={{ fontSize: TILE.hint, color: "#4d463d", lineHeight: 1 }}>
-            +
-          </span>
+          <HoldHint
+            sign="plus"
+            armed={plus.armed}
+            size={TILE.hint}
+            color="#4d463d"
+          />
         </div>
       </div>
     </div>
