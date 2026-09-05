@@ -23,9 +23,21 @@ This README explains how the app is built; the spec says what it must do.
 npm run dev
 ```
 
-Then open http://localhost:3000. To use it on your phone while developing, run
-`npm run dev -- -H 0.0.0.0` and visit `http://<your-computer-ip>:3000` from the
-phone on the same Wi‑Fi.
+Then open http://localhost:3000. To use it on your phone — which is the only
+way to judge a board meant for one lying flat on a table — `next dev` already
+listens on the network and prints a second address when it starts:
+
+```
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.23:3000
+```
+
+Open the network one from a phone on the same Wi‑Fi. No extra flag: `next dev`
+binds to every interface on its own.
+
+If the phone cannot reach it, the firewall is the usual reason — Node has to be
+allowed to accept incoming connections, which Windows blocks by default on a
+network it has classified as public.
 
 ```bash
 npm test      # the whole suite: rules, reducer, storage, hooks, components
