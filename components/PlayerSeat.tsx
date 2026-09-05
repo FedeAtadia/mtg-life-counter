@@ -42,6 +42,7 @@ export default function PlayerSeat({
       >
         <PlayerPanel
           player={player}
+          rotation={seat.rotation}
           damageOpen={damageOpen}
           onToggleDamage={onToggleDamage}
         />

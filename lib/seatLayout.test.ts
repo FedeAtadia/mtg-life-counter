@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MAX_PLAYERS, MIN_PLAYERS } from "./rules";
-import { SEAT_LAYOUTS, layoutFor } from "./seatLayout";
+import { SEAT_LAYOUTS, layoutFor, upVectorFor } from "./seatLayout";
+import type { Rotation } from "./seatLayout";
 
 const counts = Array.from(
   { length: MAX_PLAYERS - MIN_PLAYERS + 1 },
@@ -70,25 +71,28 @@ describe("seat layouts", () => {
     }
   });
 
+  // Screen axes: +x right, +y down. Written out by hand rather than derived, so
+  // this stays an independent check on upVectorFor rather than a restatement of
+  // it.
+  const AWAY_FROM_EDGE: Record<number, [number, number]> = {
+    0: [0, -1], // near edge: up the screen
+    180: [0, 1], // far edge: down the screen
+    90: [1, 0], // left edge: rightwards
+    [-90]: [-1, 0], // right edge: leftwards
+  };
+
+  it("gives each rotation an up vector pointing away from that player", () => {
+    for (const [rotation, expected] of Object.entries(AWAY_FROM_EDGE)) {
+      expect(upVectorFor(Number(rotation) as Rotation)).toEqual(expected);
+    }
+  });
+
   it("points every seat's text away from the edge that player sits at", () => {
-    // Screen axes: +x right, +y down. CSS rotation is clockwise, so it maps the
-    // text's up vector (0,-1) to (sin, -cos). That vector must point from the
-    // player's edge toward the middle of the device.
-    const awayFromEdge: Record<number, [number, number]> = {
-      0: [0, -1], // near edge: up the screen
-      180: [0, 1], // far edge: down the screen
-      90: [1, 0], // left edge: rightwards
-      [-90]: [-1, 0], // right edge: leftwards
-    };
-
-    // Math.round can hand back -0 here, which toEqual treats as different.
-    const norm = (n: number) => (Math.round(n) === 0 ? 0 : Math.round(n));
-
     for (const count of counts) {
       for (const seat of SEAT_LAYOUTS[count].seats) {
-        const rad = (seat.rotation * Math.PI) / 180;
-        const up: [number, number] = [norm(Math.sin(rad)), norm(-Math.cos(rad))];
-        expect(up).toEqual(awayFromEdge[seat.rotation]);
+        expect(upVectorFor(seat.rotation)).toEqual(
+          AWAY_FROM_EDGE[seat.rotation],
+        );
       }
     }
   });

@@ -96,3 +96,19 @@ export function layoutFor(playerCount: number): BoardLayout {
   return SEAT_LAYOUTS[playerCount] ?? SEAT_LAYOUTS[4];
 }
 
+/**
+ * The direction, in screen coordinates (+x right, +y down), that points away
+ * from the player sitting at a seat with this rotation — the way their text
+ * reads "up", and the way they push a slider to mean "more".
+ *
+ * This is the same rule the layouts above follow, kept in one place so that a
+ * gesture and a seat can never disagree about which way a player is facing.
+ */
+export function upVectorFor(rotation: Rotation): readonly [number, number] {
+  const radians = (rotation * Math.PI) / 180;
+  // Rotating the text's up vector (0,-1) by the seat's CSS rotation. Rounded
+  // because these are all quarter turns, and to avoid -0.
+  const snap = (n: number) => (Math.round(n) === 0 ? 0 : Math.round(n));
+  return [snap(Math.sin(radians)), snap(-Math.cos(radians))];
+}
+
