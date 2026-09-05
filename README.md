@@ -5,6 +5,16 @@ built for a phone lying flat in the middle of the table.
 
 Static Next.js app — no server, no accounts, no network calls at runtime.
 
+## Documentation
+
+- **[docs/SPEC.md](docs/SPEC.md)** — what the app is required to do, as
+  numbered, testable requirements. The source of truth for behaviour: if the
+  code and the spec disagree, one of them is a bug.
+- **[docs/WORKFLOW.md](docs/WORKFLOW.md)** — how to add or change behaviour
+  here. Spec first, then the failing test, then the code.
+
+This README explains how the app is built; the spec says what it must do.
+
 ## Running it
 
 ```bash
@@ -16,7 +26,7 @@ Then open http://localhost:3000. To use it on your phone while developing, run
 phone on the same Wi‑Fi.
 
 ```bash
-npm test      # reducer / rules unit tests
+npm test      # the whole suite: rules, reducer, storage, hooks, components
 npm run lint
 npm run build # static export into out/
 ```
@@ -74,8 +84,8 @@ network request, crisp at every panel size, and no Wizards artwork.
 
 ### Rules
 
-All game rules live in one pure reducer, `lib/gameReducer.ts`, which is what the
-test suite covers:
+All game rules live in one pure reducer, `lib/gameReducer.ts`. The full set is
+specified in [docs/SPEC.md](docs/SPEC.md); the ones worth knowing up front:
 
 - Starting life is 40 in Commander, 20 in Standard.
 - Life is never clamped — players go negative and can gain back. Elimination is
@@ -115,3 +125,7 @@ Partner commanders (a second commander per player), poison/energy/experience
 counters, undo history, and installable/offline PWA support. The state shape
 leaves room for all of them — commander damage is already keyed per damage
 source, which is what partner support needs.
+
+These are open rather than forgotten; see `Deliberately not specified` in
+[docs/SPEC.md](docs/SPEC.md), which is where a requirement for one of them goes
+before it is built.
