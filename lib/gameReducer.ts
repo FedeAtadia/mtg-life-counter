@@ -6,7 +6,7 @@ import {
   clamp,
   startingLifeFor,
 } from "./rules";
-import { STOPPED_TIMER, elapsedMsOf, startedTimerAt } from "./timer";
+import { STOPPED_TIMER, elapsedMsOf } from "./timer";
 import type {
   Action,
   Format,
@@ -70,14 +70,13 @@ export function createGame(
 }
 
 /**
- * Fresh totals and a fresh clock, same seats. Used by RESET_GAME and by format
- * changes, which already wipe every life total and so start a new game.
+ * Fresh totals and a clock back at zero, same seats. Used by RESET_GAME and by
+ * format changes, which already wipe every life total and so start a new game.
+ *
+ * The clock is left stopped rather than started: a table that has just reset is
+ * still shuffling, and the game is timed from the Start button (TIMER-5).
  */
-function restartGame(
-  state: GameState,
-  format: Format,
-  at: number,
-): GameState {
+function restartGame(state: GameState, format: Format): GameState {
   const life = startingLifeFor(format);
   return {
     ...state,
@@ -85,14 +84,15 @@ function restartGame(
     players: syncDamageMaps(
       state.players.map((p) => ({ ...p, life, commanderDamage: {} })),
     ),
-    timer: startedTimerAt(at),
+    timer: STOPPED_TIMER,
   };
 }
 
 /**
  * Deterministic for the static export: no clock is read here, so the
- * prerendered HTML and the first client render always agree. GameProvider
- * starts the timer after mount.
+ * prerendered HTML and the first client render always agree. Its stopped,
+ * zeroed timer is also the right one for a fresh board, which waits to be
+ * started rather than timing the shuffling (TIMER-4).
  */
 export const initialGameState: GameState = createGame("commander", 4);
 
@@ -102,18 +102,14 @@ export function gameReducer(state: GameState, action: Action): GameState {
       return action.state;
 
     case "NEW_GAME":
-      return createGame(
-        action.format,
-        action.playerCount,
-        startedTimerAt(action.at),
-      );
+      return createGame(action.format, action.playerCount);
 
     case "RESET_GAME":
-      return restartGame(state, state.format, action.at);
+      return restartGame(state, state.format);
 
     case "SET_FORMAT":
       if (action.format === state.format) return state;
-      return restartGame(state, action.format, action.at);
+      return restartGame(state, action.format);
 
     case "PAUSE_TIMER": {
       if (state.timer.startedAt === null) return state;

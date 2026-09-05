@@ -16,12 +16,25 @@ import {
   defaultNameFor,
   startingLifeFor,
 } from "@/lib/rules";
-import { formatElapsed, isRunning } from "@/lib/timer";
+import { formatElapsed, hasStarted, isRunning } from "@/lib/timer";
 import { useElapsed } from "@/lib/useElapsed";
 import { useGame } from "@/lib/useGame";
 import type { Format } from "@/lib/types";
+import type { WakeLockStatus } from "@/lib/useWakeLock";
 
 const FORMATS: Format[] = ["standard", "commander"];
+
+/**
+ * Why the screen is or is not staying lit (AWAKE-6). A phone that still goes
+ * black halfway through a turn reads as a broken app unless it says otherwise.
+ */
+const SCREEN_NOTE: Record<WakeLockStatus, string> = {
+  held: "The screen stays lit while this page is open.",
+  refused:
+    "The browser would not keep the screen lit — battery saver usually does that. It will dim as it normally does.",
+  unavailable:
+    "This browser cannot keep the screen lit — on iOS that needs Safari 16.4 or newer — so it will dim as it normally does.",
+};
 
 /**
  * Anything that wipes life totals takes two taps: the first arms it, the second
@@ -37,32 +50,37 @@ function useArmedAction(timeoutMs = 3500) {
   return [armed, setArmed] as const;
 }
 
-export default function SettingsSheet({ onClose }: { onClose: () => void }) {
+export default function SettingsSheet({
+  wakeLock,
+  onClose,
+}: {
+  wakeLock: WakeLockStatus;
+  onClose: () => void;
+}) {
   const { state, dispatch } = useGame();
   const [armed, setArmed] = useArmedAction();
   const playerCount = state.players.length;
   const elapsed = useElapsed(state.timer);
   const timerRunning = isRunning(state.timer);
+  const timerStarted = hasStarted(state.timer);
 
-  // These take the clock rather than reading it, for the same reason the
-  // reducer does: the only place `Date.now()` is called is the event handler.
-  const selectFormat = (format: Format, at: number) => {
+  const selectFormat = (format: Format) => {
     if (format === state.format) return;
     const key = `format:${format}`;
     if (armed !== key) {
       setArmed(key);
       return;
     }
-    dispatch({ type: "SET_FORMAT", format, at });
+    dispatch({ type: "SET_FORMAT", format });
     setArmed(null);
   };
 
-  const resetGame = (at: number) => {
+  const resetGame = () => {
     if (armed !== "reset") {
       setArmed("reset");
       return;
     }
-    dispatch({ type: "RESET_GAME", at });
+    dispatch({ type: "RESET_GAME" });
     setArmed(null);
     onClose();
   };
@@ -97,6 +115,8 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
           </span>
           <button
             type="button"
+            // The one place `Date.now()` is read for the clock, for the same
+            // reason the reducer never does: it keeps the reducer pure.
             onClick={() =>
               dispatch({
                 type: timerRunning ? "PAUSE_TIMER" : "RESUME_TIMER",
@@ -105,7 +125,7 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
             }
             className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-white/80 active:bg-white/10"
           >
-            {timerRunning ? "Pause" : "Resume"}
+            {timerRunning ? "Pause" : timerStarted ? "Resume" : "Start"}
           </button>
         </div>
 
@@ -118,7 +138,7 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
               <button
                 key={format}
                 type="button"
-                onClick={() => selectFormat(format, Date.now())}
+                onClick={() => selectFormat(format)}
                 className={`rounded-xl border px-3 py-3 text-left transition-colors ${
                   selected
                     ? "border-white/45 bg-white/10"
@@ -264,9 +284,14 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
+        <SectionLabel>Screen</SectionLabel>
+        <p className="mb-5 text-xs leading-snug text-[var(--muted)]">
+          {SCREEN_NOTE[wakeLock]}
+        </p>
+
         <button
           type="button"
-          onClick={() => resetGame(Date.now())}
+          onClick={() => resetGame()}
           className={`rounded-xl border px-3 py-3 text-sm font-semibold transition-colors ${
             armed === "reset"
               ? "border-[var(--danger)] bg-[var(--danger)]/20 text-white"

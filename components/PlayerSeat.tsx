@@ -7,7 +7,6 @@ import type { Player } from "@/lib/types";
 interface Props {
   seat: Seat;
   player: Player;
-  damageOpen: boolean;
   onToggleDamage: () => void;
 }
 
@@ -19,12 +18,7 @@ interface Props {
  * cell lets the panel take the cell's height as its width (`100cqh`) and vice
  * versa, entirely in CSS — no measuring, no resize observers.
  */
-export default function PlayerSeat({
-  seat,
-  player,
-  damageOpen,
-  onToggleDamage,
-}: Props) {
+export default function PlayerSeat({ seat, player, onToggleDamage }: Props) {
   const vertical = seat.rotation === 90 || seat.rotation === -90;
 
   return (
@@ -42,7 +36,7 @@ export default function PlayerSeat({
       >
         <PlayerPanel
           player={player}
-          damageOpen={damageOpen}
+          rotation={seat.rotation}
           onToggleDamage={onToggleDamage}
         />
       </div>

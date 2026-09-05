@@ -30,14 +30,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Storage is read after mount, never during render, so the statically
   // exported HTML and the first client render always match.
   useEffect(() => {
+    // No saved game means the prerendered board is already the right one: full
+    // life totals, and a clock at zero waiting for the Start button (TIMER-4).
     const saved = loadGame();
-    if (saved) {
-      dispatch({ type: "HYDRATE", state: saved });
-    } else {
-      // No saved game, so this is a fresh board: start its clock. Totals are
-      // already at starting life, so this only sets the timer running.
-      dispatch({ type: "RESET_GAME", at: Date.now() });
-    }
+    if (saved) dispatch({ type: "HYDRATE", state: saved });
     hydrated.current = true;
   }, []);
 

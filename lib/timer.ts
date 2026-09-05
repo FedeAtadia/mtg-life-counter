@@ -26,6 +26,17 @@ export function isRunning(timer: TimerState): boolean {
 }
 
 /**
+ * True once the clock has run at all, which is what tells a game in progress
+ * from one still waiting to be started.
+ *
+ * Derived rather than stored: a stopped clock with nothing on it has never
+ * run, so no flag has to be persisted and no saved game needs migrating.
+ */
+export function hasStarted(timer: TimerState): boolean {
+  return timer.startedAt !== null || timer.elapsedMs > 0;
+}
+
+/**
  * Minutes and seconds for the first hour, then hours and minutes: a game long
  * enough to pass an hour doesn't need the seconds, and "1:05" stays as short as
  * "59:59" so the pill never changes width much.
