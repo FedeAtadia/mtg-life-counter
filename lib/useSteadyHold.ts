@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, type PointerEvent } from "react";
 import { TICK_MS, pointsForHeldMs } from "./holdRate";
 
 /**
- * A button that is worth one point per tap, and counts steadily while held.
+ * A button that is worth one point per tap, and jumps by ten while held.
  *
  * Returns handlers to spread onto the pressable element; give that element
  * `touch-action: none` so holding cannot turn into a page scroll.
@@ -46,9 +46,10 @@ export function useSteadyHold(onStep: (points: number) => void) {
   const start = useCallback(() => {
     stop();
     pressedAt.current = Date.now();
-    sent.current = 0;
     holding.current = true;
-    // The press itself is always worth exactly one point.
+    // The press itself is always worth exactly one point, and it counts towards
+    // the hold's running total — so the first jump lands on 50 from 40, not 51.
+    sent.current = 1;
     onStepRef.current(1);
     timer.current = window.setInterval(settleUp, TICK_MS);
   }, [settleUp, stop]);
