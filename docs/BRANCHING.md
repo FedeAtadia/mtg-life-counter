@@ -13,6 +13,7 @@ feature branch ──PR──▶ development ──PR──▶ main ──▶ pr
 | --- | --- | --- |
 | Direct pushes | blocked — pull request required | blocked — pull request required |
 | CI (`ci`) must pass | yes | yes |
+| Vercel build must succeed | no | yes |
 | Approving reviews | 0 | **1**, from someone with write access |
 | Branch must be up to date first | no | yes |
 | Force push / delete | blocked | blocked |
@@ -31,6 +32,20 @@ changes what players see.
   build is part of it on purpose: it runs TypeScript and proves the static
   export still comes out, and that export is what the host serves. See
   [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+- **`Vercel` must succeed, on `main` only.** The host's own build, so a release
+  cannot merge on a green test run while the thing that actually ships fails to
+  deploy. Two details worth being precise about:
+  - The required context is **`Vercel`** — the deployment status, whose
+    description reads "Deployment has completed". Vercel also posts a check
+    named `Vercel Preview Comments`, which only manages the comment on the pull
+    request. Requiring that one would gate releases on a comment bot.
+  - It is a **preview** deployment being gated, not the production one. Vercel
+    builds the release pull request as a preview; production deploys after the
+    merge. Nothing can gate a deploy on itself — what this buys is that a build
+    which fails cannot reach `main` in the first place.
+
+  It is off for `development` deliberately: a broken preview should not block
+  work accumulating on the integration branch, only a release.
 - **One approving review on `main`.** GitHub only counts approvals from users
   with write access or above, which is exactly "contributors of the repo".
 - **Up to date before merging, on `main` only.** This forces the release PR to
@@ -42,8 +57,9 @@ changes what players see.
   Otherwise "approved" can quietly come to mean "approved something else".
 - **No force pushes, no deletion.** Both branches are shared history.
 - **Admins can bypass.** With one admin on the repo, absolute rules mean a
-  broken CI runner blocks a production hotfix. The bypass is an escape hatch,
-  not a habit — it is recorded in the rules' audit log.
+  broken CI runner — or a Vercel integration that stops reporting — blocks a
+  production hotfix. Two required checks is two things that can jam. The bypass
+  is an escape hatch, not a habit; it is recorded in the rules' audit log.
 
 ## Applying them
 
@@ -123,8 +139,6 @@ gh pr create --base main --head development --title "Release"
 
 ## Worth considering later
 
-- **Vercel's deployment check as a second required check on `main`**, so a
-  failed preview build blocks the release too, not just a failed test run.
 - **A `CODEOWNERS` file**, if review should always route to a particular person
   rather than to whoever is around.
 - **Squash-only merges into `development`**, if the feature-branch history
