@@ -46,9 +46,9 @@ export interface GameState {
  */
 export type Action =
   | { type: "HYDRATE"; state: GameState }
-  | { type: "NEW_GAME"; format: Format; playerCount: number; at: number }
-  | { type: "RESET_GAME"; at: number }
-  | { type: "SET_FORMAT"; format: Format; at: number }
+  | { type: "NEW_GAME"; format: Format; playerCount: number }
+  | { type: "RESET_GAME" }
+  | { type: "SET_FORMAT"; format: Format }
   | { type: "PAUSE_TIMER"; at: number }
   | { type: "RESUME_TIMER"; at: number }
   | { type: "ADD_PLAYER" }

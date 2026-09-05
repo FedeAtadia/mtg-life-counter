@@ -28,6 +28,16 @@ export function renderBoard(saved?: GameState) {
   );
 }
 
+/** The centre hub: the game clock, and the way into settings. */
+export const hub = () => screen.getByLabelText(/Game settings/);
+
+/** Opens the settings sheet and hands back its root element. */
+export function openSettings(): HTMLElement {
+  fireEvent.click(hub());
+  return screen.getByRole("heading", { name: "Game settings" })
+    .parentElement!.parentElement as HTMLElement;
+}
+
 /** The panel for one seat, found by the name on its type line. */
 export function panelFor(name: string): HTMLElement {
   const zone = screen.getByLabelText(

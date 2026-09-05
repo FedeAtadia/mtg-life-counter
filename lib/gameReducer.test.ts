@@ -7,7 +7,7 @@ import {
   isEliminated,
 } from "./rules";
 import { parseGameState } from "./storage";
-import { elapsedMsOf } from "./timer";
+import { elapsedMsOf, startedTimerAt } from "./timer";
 import type { Action, GameState } from "./types";
 
 /** A fixed clock, so nothing here depends on when the suite runs. */
@@ -170,11 +170,7 @@ describe("format and reset", () => {
   it("resets every total when the format changes", () => {
     let state = createGame("commander", 3);
     state = gameReducer(state, damage("p1", "p2", 9));
-    state = gameReducer(state, {
-      type: "SET_FORMAT",
-      format: "standard",
-      at: T0,
-    });
+    state = gameReducer(state, { type: "SET_FORMAT", format: "standard" });
 
     expect(state.format).toBe("standard");
     expect(state.players.every((p) => p.life === 20)).toBe(true);
@@ -189,7 +185,7 @@ describe("format and reset", () => {
       name: "Nissa",
     });
     state = gameReducer(state, { type: "ADJUST_LIFE", id: "p2", delta: -13 });
-    state = gameReducer(state, { type: "RESET_GAME", at: T0 });
+    state = gameReducer(state, { type: "RESET_GAME" });
 
     expect(find(state, "p2").name).toBe("Nissa");
     expect(find(state, "p2").life).toBe(40);
@@ -199,32 +195,42 @@ describe("format and reset", () => {
 describe("timer", () => {
   const MINUTE = 60_000;
 
-  it("starts a fresh clock on reset", () => {
+  /** A game already under way, which is what most of these start from. */
+  const running = (at = T0) => createGame("commander", 4, startedTimerAt(at));
+
+  it("starts the clock from the moment the button was pressed", () => {
     const state = gameReducer(createGame("commander", 4), {
-      type: "RESET_GAME",
+      type: "RESUME_TIMER",
       at: T0,
     });
     expect(state.timer).toEqual({ startedAt: T0, elapsedMs: 0 });
     expect(elapsedMsOf(state.timer, T0 + 90_000)).toBe(90_000);
   });
 
-  it("starts a fresh clock when the format changes", () => {
-    let state = createGame("commander", 4);
-    state = gameReducer(state, { type: "RESET_GAME", at: T0 });
-    state = gameReducer(state, {
+  it("puts the clock back to zero and stopped on reset", () => {
+    // A reset clears the table; the game after it is started deliberately,
+    // once everyone has shuffled, rather than while they still are.
+    const state = gameReducer(running(), { type: "RESET_GAME" });
+
+    expect(state.timer).toEqual({ startedAt: null, elapsedMs: 0 });
+    expect(elapsedMsOf(state.timer, T0 + 90_000)).toBe(0);
+  });
+
+  it("puts the clock back to zero and stopped when the format changes", () => {
+    const state = gameReducer(running(), {
       type: "SET_FORMAT",
       format: "standard",
-      at: T0 + 5 * MINUTE,
     });
+
+    expect(state.timer).toEqual({ startedAt: null, elapsedMs: 0 });
     expect(elapsedMsOf(state.timer, T0 + 5 * MINUTE)).toBe(0);
   });
 
   it("banks elapsed time on pause and stops accumulating", () => {
-    let state = gameReducer(createGame("commander", 4), {
-      type: "RESET_GAME",
-      at: T0,
+    const state = gameReducer(running(), {
+      type: "PAUSE_TIMER",
+      at: T0 + 3 * MINUTE,
     });
-    state = gameReducer(state, { type: "PAUSE_TIMER", at: T0 + 3 * MINUTE });
 
     expect(state.timer).toEqual({ startedAt: null, elapsedMs: 3 * MINUTE });
     // An hour of wall-clock passing must not move a paused clock.
@@ -232,11 +238,10 @@ describe("timer", () => {
   });
 
   it("continues from the banked total on resume", () => {
-    let state = gameReducer(createGame("commander", 4), {
-      type: "RESET_GAME",
-      at: T0,
+    let state = gameReducer(running(), {
+      type: "PAUSE_TIMER",
+      at: T0 + 3 * MINUTE,
     });
-    state = gameReducer(state, { type: "PAUSE_TIMER", at: T0 + 3 * MINUTE });
     state = gameReducer(state, { type: "RESUME_TIMER", at: T0 + 10 * MINUTE });
 
     // Two minutes of play after a seven minute break: 3 + 2, not 3 + 9.
@@ -244,10 +249,7 @@ describe("timer", () => {
   });
 
   it("does not drift across repeated pause/resume cycles", () => {
-    let state = gameReducer(createGame("commander", 4), {
-      type: "RESET_GAME",
-      at: T0,
-    });
+    let state = running();
     let now = T0;
     for (let i = 0; i < 20; i++) {
       now += MINUTE;
@@ -259,10 +261,7 @@ describe("timer", () => {
   });
 
   it("ignores pausing a paused clock and resuming a running one", () => {
-    let state = gameReducer(createGame("commander", 4), {
-      type: "RESET_GAME",
-      at: T0,
-    });
+    let state = running();
     expect(gameReducer(state, { type: "RESUME_TIMER", at: T0 + 99 })).toBe(
       state,
     );
@@ -274,10 +273,7 @@ describe("timer", () => {
   });
 
   it("leaves the clock alone for life and roster changes", () => {
-    const state = gameReducer(createGame("commander", 4), {
-      type: "RESET_GAME",
-      at: T0,
-    });
+    const state = running();
     const after = apply(
       state,
       { type: "ADJUST_LIFE", id: "p1", delta: -7 },
@@ -504,7 +500,7 @@ describe("setting a colour identity", () => {
       id: "p3",
       colors: ["w", "b"],
     });
-    state = apply(state, { type: "RESET_GAME", at: T0 });
+    state = apply(state, { type: "RESET_GAME" });
     expect(find(state, "p3").colors).toEqual(["w", "b"]);
   });
 });
@@ -520,7 +516,6 @@ describe("starting a new game", () => {
       type: "NEW_GAME",
       format: "standard",
       playerCount: 3,
-      at: T0,
     });
 
     expect(after.players).toHaveLength(3);
@@ -529,15 +524,14 @@ describe("starting a new game", () => {
     expect(after.format).toBe("standard");
   });
 
-  it("starts its clock from zero", () => {
+  it("comes up with its clock at zero, waiting to be started", () => {
     const state = apply(createGame("commander", 4), {
       type: "NEW_GAME",
       format: "commander",
       playerCount: 4,
-      at: T0,
     });
-    expect(state.timer).toEqual({ startedAt: T0, elapsedMs: 0 });
-    expect(elapsedMsOf(state.timer, T0 + 3_000)).toBe(3_000);
+    expect(state.timer).toEqual({ startedAt: null, elapsedMs: 0 });
+    expect(elapsedMsOf(state.timer, T0 + 3_000)).toBe(0);
   });
 
   it("clamps an impossible player count instead of rejecting it", () => {
@@ -545,13 +539,11 @@ describe("starting a new game", () => {
       type: "NEW_GAME",
       format: "commander",
       playerCount: 0,
-      at: T0,
     });
     const huge = apply(createGame("commander", 4), {
       type: "NEW_GAME",
       format: "commander",
       playerCount: 12,
-      at: T0,
     });
     expect(tiny.players).toHaveLength(2);
     expect(huge.players).toHaveLength(6);
@@ -606,7 +598,7 @@ describe("the reducer is pure", () => {
     expect(gameReducer(state, damage("p1", "p9", 3))).toBe(state);
     expect(gameReducer(state, { type: "PAUSE_TIMER", at: T0 })).toBe(state);
     expect(
-      gameReducer(state, { type: "SET_FORMAT", format: "commander", at: T0 }),
+      gameReducer(state, { type: "SET_FORMAT", format: "commander" }),
     ).toBe(state);
     expect(gameReducer(state, { type: "REMOVE_PLAYER", id: "p9" })).toBe(state);
   });

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { elapsedMsOf, formatElapsed, isRunning, showsSeconds } from "./timer";
+import {
+  STOPPED_TIMER,
+  elapsedMsOf,
+  formatElapsed,
+  hasStarted,
+  isRunning,
+  showsSeconds,
+} from "./timer";
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
@@ -61,5 +68,24 @@ describe("isRunning / showsSeconds", () => {
   it("stops needing a per-second tick once the seconds are hidden", () => {
     expect(showsSeconds(HOUR - 1)).toBe(true);
     expect(showsSeconds(HOUR)).toBe(false);
+  });
+});
+
+describe("hasStarted", () => {
+  const T0 = 1_700_000_000_000;
+
+  it("is false on a clock nobody has started yet", () => {
+    // What tells a game waiting to be started from one in progress: no flag is
+    // stored for it, so a save written before the Start button existed reads
+    // correctly too.
+    expect(hasStarted(STOPPED_TIMER)).toBe(false);
+  });
+
+  it("is true while the clock is running", () => {
+    expect(hasStarted({ startedAt: T0, elapsedMs: 0 })).toBe(true);
+  });
+
+  it("is true for a game paused with time on it", () => {
+    expect(hasStarted({ startedAt: null, elapsedMs: 5 * MINUTE })).toBe(true);
   });
 });

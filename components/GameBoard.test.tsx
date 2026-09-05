@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createGame } from "@/lib/gameReducer";
 import { MAX_PLAYERS, MIN_PLAYERS } from "@/lib/rules";
 import { SEAT_LAYOUTS } from "@/lib/seatLayout";
-import { panelFor, renderBoard } from "../test/harness";
+import { hub, openSettings, panelFor, renderBoard } from "../test/harness";
 
 const T0 = 1_700_000_000_000;
 
@@ -54,9 +54,7 @@ describe("seating the table", () => {
     // The layout is derived from the roster, not stored alongside it, so this
     // is the thing that has to keep holding as the table changes.
     renderBoard(createGame("commander", 4));
-    fireEvent.click(screen.getByLabelText(/Game settings/));
-    const sheet = screen.getByRole("heading", { name: "Game settings" })
-      .parentElement!.parentElement as HTMLElement;
+    const sheet = openSettings();
 
     fireEvent.click(within(sheet).getByLabelText("Add a player"));
     expect(seatCount()).toBe(5);
@@ -73,17 +71,13 @@ describe("seating the table", () => {
     // so a hub lying across it would cover them.
     renderBoard(createGame("commander", 6));
 
-    expect(screen.getByLabelText(/Game settings/).style.transform).toContain(
-      "rotate(90deg)",
-    );
+    expect(hub().style.transform).toContain("rotate(90deg)");
   });
 
   it("leaves the hub square where the seats meet at a corner", () => {
     renderBoard(createGame("commander", 4));
 
-    expect(screen.getByLabelText(/Game settings/).style.transform).toContain(
-      "rotate(0deg)",
-    );
+    expect(hub().style.transform).toContain("rotate(0deg)");
   });
 });
 
@@ -143,9 +137,7 @@ describe("the commander damage panel", () => {
     openDamage("Player 4");
     expect(damagePanelsOpen()).toBe(1);
 
-    fireEvent.click(screen.getByLabelText(/Game settings/));
-    const sheet = screen.getByRole("heading", { name: "Game settings" })
-      .parentElement!.parentElement as HTMLElement;
+    const sheet = openSettings();
     fireEvent.click(within(sheet).getByLabelText("Remove Player 4"));
 
     expect(damagePanelsOpen()).toBe(0);

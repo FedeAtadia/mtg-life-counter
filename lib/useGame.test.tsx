@@ -53,12 +53,15 @@ describe("a first visit", () => {
     expect(result.current.state.players.every((p) => p.life === 40)).toBe(true);
   });
 
-  it("starts the clock, which the prerendered state deliberately does not", () => {
-    // The static export has to render 0:00 on a stopped clock so the build and
-    // the first client render agree; the provider starts it after mount.
+  it("leaves the clock stopped, waiting to be started", () => {
+    // The board used to start its own clock on mount. It waits now (TIMER-4):
+    // the game gets going from the Start button, when the table is ready.
     const { result } = mount();
 
-    expect(result.current.state.timer.startedAt).toBe(T0);
+    expect(result.current.state.timer).toEqual({
+      startedAt: null,
+      elapsedMs: 0,
+    });
   });
 });
 
@@ -91,9 +94,9 @@ describe("returning to a game in progress", () => {
   });
 
   it("brings the clock back exactly as it was saved", () => {
-    // Only a fresh board starts its own clock. A game picked back up keeps the
-    // timer it was saved with, so a paused game does not silently resume and a
-    // running one does not lose the time the app was closed for.
+    // A game picked back up keeps the timer it was saved with, so a paused
+    // game does not silently resume and a running one does not lose the time
+    // the app was closed for.
     saveGame(createGame("commander", 4, { startedAt: null, elapsedMs: 42_000 }));
 
     const { result } = mount();
@@ -120,7 +123,7 @@ describe("returning to a game in progress", () => {
     const { result } = mount();
 
     expect(result.current.state.players).toHaveLength(4);
-    expect(result.current.state.timer.startedAt).toBe(T0);
+    expect(result.current.state.timer.startedAt).toBeNull();
   });
 });
 

@@ -7,12 +7,16 @@ import PlayerSeat from "./PlayerSeat";
 import SettingsSheet from "./SettingsSheet";
 import { layoutFor } from "@/lib/seatLayout";
 import { useGame } from "@/lib/useGame";
+import { useWakeLock } from "@/lib/useWakeLock";
 import type { PlayerId } from "@/lib/types";
 
 export default function GameBoard() {
   const { state } = useGame();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [damageOpenFor, setDamageOpenFor] = useState<PlayerId | null>(null);
+  // Held here rather than in the sheet: the screen has to stay lit while the
+  // board is being played, not only while settings happen to be open.
+  const wakeLock = useWakeLock();
 
   const layout = layoutFor(state.players.length);
 
@@ -68,7 +72,12 @@ export default function GameBoard() {
         />
       )}
 
-      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsSheet
+          wakeLock={wakeLock}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
     </main>
   );
 }
