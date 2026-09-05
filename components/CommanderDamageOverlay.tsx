@@ -18,10 +18,20 @@ const SIZE = {
   done: "min(7cqh, 4.5cqw, 19px)",
 };
 
-/** Columns that keep tiles as square as possible in a wide, short panel. */
-function columnsFor(opponentCount: number): number {
-  if (opponentCount <= 3) return Math.max(1, opponentCount);
-  return opponentCount === 4 ? 2 : 3;
+/**
+ * How the opponents split across rows.
+ *
+ * Every row fills the width, so no tile is ever left alone beside an empty
+ * cell. A three-column grid did exactly that to five opponents — three on top,
+ * two and a hole underneath — and the hole is what the eye goes to.
+ *
+ * Rows can hold different counts; within a row the tiles are equal.
+ */
+function rowsFor<T>(opponents: readonly T[]): T[][] {
+  if (opponents.length <= 3) return [[...opponents]];
+  // Four and five both split into two rows, as evenly as they go: 2+2, 3+2.
+  const top = Math.ceil(opponents.length / 2);
+  return [opponents.slice(0, top), opponents.slice(top)];
 }
 
 /**
@@ -66,7 +76,7 @@ export default function CommanderDamageOverlay({
   rotation,
   onClose,
 }: Props) {
-  const columns = columnsFor(opponents.length);
+  const rows = rowsFor(opponents);
   const frame = frameFor(rotation);
 
   return (
@@ -102,17 +112,21 @@ export default function CommanderDamageOverlay({
           Damage taken from
         </span>
 
-        <div
-          className="grid min-h-0 flex-1 gap-[1.6cqh]"
-          style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
-        >
-          {opponents.map((opponent) => (
-            <DamageTile
-              key={opponent.id}
-              targetId={player.id}
-              source={opponent}
-              value={player.commanderDamage[opponent.id] ?? 0}
-            />
+        <div className="flex min-h-0 flex-1 flex-col gap-[1.6cqh]">
+          {rows.map((row, index) => (
+            <div
+              key={index}
+              className="flex min-h-0 flex-1 gap-[1.6cqh]"
+            >
+              {row.map((opponent) => (
+                <DamageTile
+                  key={opponent.id}
+                  targetId={player.id}
+                  source={opponent}
+                  value={player.commanderDamage[opponent.id] ?? 0}
+                />
+              ))}
+            </div>
           ))}
         </div>
 
@@ -179,7 +193,7 @@ function DamageTile({
 
   return (
     <div
-      className="relative flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-[1.4cqh]"
+      className="relative flex min-w-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.4cqh]"
       style={{
         containerType: "size",
         background: washFor(colors),

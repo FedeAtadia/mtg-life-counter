@@ -120,23 +120,41 @@ describe("opening the panel", () => {
     expect(damageFrom(openDamage("Player 1"), "Player 2")).toBe(0);
   });
 
-  it("lays the tiles out to stay roughly square as the table grows", () => {
-    // Text inside a tile is sized against the tile, so five tiles in a row
-    // would overflow at six players.
-    const columnsAt = (players: number) => {
+  it("fills every row, leaving no tile alone beside a gap", () => {
+    // Text inside a tile is sized against the tile, so five tiles in one row
+    // would overflow at six players — but a three-column grid left the fifth
+    // sitting on its own next to a hole, and the hole is what the eye goes to.
+    const rowsAt = (players: number) => {
       window.localStorage.clear();
       const view = renderBoard(createGame("commander", players));
       const panel = openDamage("Player 1");
-      const grid = panel.querySelector("[style*=grid-template-columns]");
-      const columns = (grid as HTMLElement).style.gridTemplateColumns;
+      const tiles = [...panel.querySelectorAll("[style*=container-type]")];
+      // A row is however many tiles share a parent.
+      const rows = [...new Set(tiles.map((tile) => tile.parentElement))];
+      const perRow = rows.map((row) => row!.children.length);
       view.unmount();
-      return columns;
+      return perRow;
     };
 
-    expect(columnsAt(2)).toContain("repeat(1");
-    expect(columnsAt(4)).toContain("repeat(3");
-    expect(columnsAt(5)).toContain("repeat(2");
-    expect(columnsAt(6)).toContain("repeat(3");
+    expect(rowsAt(2)).toEqual([1]);
+    expect(rowsAt(3)).toEqual([2]);
+    expect(rowsAt(4)).toEqual([3]);
+    expect(rowsAt(5)).toEqual([2, 2]);
+    expect(rowsAt(6)).toEqual([3, 2]);
+  });
+
+  it("gives every tile in a row an equal share of it", () => {
+    // Rows can hold different counts, but within a row the tiles match.
+    renderBoard(createGame("commander", 6));
+    const panel = openDamage("Player 1");
+    const tiles = [...panel.querySelectorAll("[style*=container-type]")];
+    const rows = [...new Set(tiles.map((tile) => tile.parentElement))];
+
+    for (const row of rows) {
+      for (const tile of row!.children) {
+        expect(tile).toHaveClass("flex-1");
+      }
+    }
   });
 });
 
