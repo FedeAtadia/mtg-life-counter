@@ -13,16 +13,17 @@ feature branch ──PR──▶ development ──PR──▶ main ──▶ pr
 | --- | --- | --- |
 | Direct pushes | blocked — pull request required | blocked — pull request required |
 | CI (`ci`) must pass | yes | yes |
-| Vercel build must succeed | no | yes |
+| Vercel build must succeed | yes | yes |
 | Approving reviews | 0 | **1**, from someone with write access |
 | Branch must be up to date first | no | yes |
 | Force push / delete | blocked | blocked |
 | Admin can bypass | yes | yes |
 
-Two gates, deliberately uneven. Day-to-day work into `development` is gated by
-the tests alone, so nobody waits on the other person to be awake. The release
-into `main` is gated by the tests *and* a human, because that is the one that
-changes what players see.
+Two gates, deliberately uneven. Both branches demand the same of a machine: a
+green test run, and a build that actually deploys. What `main` adds is a
+person — the release is the one that changes what players see, so somebody
+signs it off. Day-to-day work into `development` never waits on the other
+person to be awake.
 
 ## Why each rule is there
 
@@ -32,9 +33,11 @@ changes what players see.
   build is part of it on purpose: it runs TypeScript and proves the static
   export still comes out, and that export is what the host serves. See
   [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
-- **`Vercel` must succeed, on `main` only.** The host's own build, so a release
-  cannot merge on a green test run while the thing that actually ships fails to
-  deploy. Two details worth being precise about:
+- **`Vercel` must succeed, on both branches.** The host's own build, so nothing
+  merges on a green test run while the thing that actually ships fails to
+  deploy. On `development` it catches a broken build at the feature that caused
+  it, rather than at the release, when it is somebody else's problem to unpick.
+  Two details worth being precise about:
   - The required context is **`Vercel`** — the deployment status, whose
     description reads "Deployment has completed". Vercel also posts a check
     named `Vercel Preview Comments`, which only manages the comment on the pull
@@ -43,9 +46,6 @@ changes what players see.
     builds the release pull request as a preview; production deploys after the
     merge. Nothing can gate a deploy on itself — what this buys is that a build
     which fails cannot reach `main` in the first place.
-
-  It is off for `development` deliberately: a broken preview should not block
-  work accumulating on the integration branch, only a release.
 - **One approving review on `main`.** GitHub only counts approvals from users
   with write access or above, which is exactly "contributors of the repo".
 - **Up to date before merging, on `main` only.** This forces the release PR to
@@ -57,9 +57,10 @@ changes what players see.
   Otherwise "approved" can quietly come to mean "approved something else".
 - **No force pushes, no deletion.** Both branches are shared history.
 - **Admins can bypass.** With one admin on the repo, absolute rules mean a
-  broken CI runner — or a Vercel integration that stops reporting — blocks a
-  production hotfix. Two required checks is two things that can jam. The bypass
-  is an escape hatch, not a habit; it is recorded in the rules' audit log.
+  broken CI runner — or a Vercel integration that stops reporting — blocks
+  every merge, on both branches, not just a production hotfix. Two required
+  checks on two branches is four things that can jam. The bypass is an escape
+  hatch, not a habit; it is recorded in the rules' audit log.
 
 ## Applying them
 
