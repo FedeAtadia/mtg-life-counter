@@ -3,6 +3,7 @@
 import { formatElapsed, isRunning } from "@/lib/timer";
 import { useElapsed } from "@/lib/useElapsed";
 import { useGame } from "@/lib/useGame";
+import type { Rotation } from "@/lib/seatLayout";
 
 /**
  * Settings entry point and game clock, parked on the seam between panels at
@@ -11,7 +12,13 @@ import { useGame } from "@/lib/useGame";
  * The tick lives here rather than in GameBoard so that a second passing
  * re-renders this pill alone, not all six player panels.
  */
-export default function CenterHub({ onClick }: { onClick: () => void }) {
+export default function CenterHub({
+  onClick,
+  rotation,
+}: {
+  onClick: () => void;
+  rotation: Rotation;
+}) {
   const { state } = useGame();
   const elapsed = useElapsed(state.timer);
   const running = isRunning(state.timer);
@@ -23,7 +30,10 @@ export default function CenterHub({ onClick }: { onClick: () => void }) {
       aria-label={`Game settings. Elapsed ${formatElapsed(elapsed)}${
         running ? "" : ", paused"
       }`}
-      className="absolute top-1/2 left-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full border border-[#33334a] bg-[#14141c] py-1.5 pr-3 pl-2.5 text-white/75 shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:bg-[#1d1d28]"
+      className="absolute top-1/2 left-1/2 z-30 flex items-center gap-1.5 rounded-full border border-[#33334a] bg-[#14141c] py-1.5 pr-3 pl-2.5 text-white/75 shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:bg-[#1d1d28]"
+      style={{
+        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+      }}
     >
       <svg
         width="14"

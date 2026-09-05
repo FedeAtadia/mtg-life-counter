@@ -26,6 +26,14 @@ export interface BoardLayout {
   /** Raw grid-template-rows / grid-template-columns values. */
   rows: string;
   cols: string;
+  /**
+   * How the centre hub is turned.
+   *
+   * With five or six players the two middle seats sit either side of the
+   * centre with their names against the seam, so a hub lying across that seam
+   * covers them. Turning it a quarter keeps it in line with the gap.
+   */
+  hubRotation: Rotation;
   seats: Seat[];
 }
 
@@ -34,6 +42,7 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
   2: {
     rows: "1fr 1fr",
     cols: "1fr",
+    hubRotation: 0,
     seats: [
       { gridArea: "2 / 1 / 3 / 2", rotation: 0 },
       { gridArea: "1 / 1 / 2 / 2", rotation: 180 },
@@ -44,6 +53,7 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
   3: {
     rows: "1.25fr 1fr",
     cols: "1fr 1fr",
+    hubRotation: 0,
     seats: [
       { gridArea: "2 / 1 / 3 / 3", rotation: 0 },
       { gridArea: "1 / 1 / 2 / 2", rotation: 90 },
@@ -55,6 +65,8 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
   4: {
     rows: "1fr 1fr",
     cols: "1fr 1fr",
+    // The centre lands where four corners meet, clear of every name.
+    hubRotation: 0,
     seats: [
       { gridArea: "2 / 1 / 3 / 2", rotation: 90 },
       { gridArea: "1 / 1 / 2 / 2", rotation: 90 },
@@ -68,6 +80,8 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
   5: {
     rows: "repeat(6, 1fr)",
     cols: "1fr 1fr",
+    // Middle seats sit either side of the centre with their names on the seam.
+    hubRotation: 90,
     seats: [
       { gridArea: "5 / 1 / 7 / 2", rotation: 90 },
       { gridArea: "3 / 1 / 5 / 2", rotation: 90 },
@@ -81,6 +95,8 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
   6: {
     rows: "1fr 1fr 1fr",
     cols: "1fr 1fr",
+    // Middle seats sit either side of the centre with their names on the seam.
+    hubRotation: 90,
     seats: [
       { gridArea: "3 / 1 / 4 / 2", rotation: 90 },
       { gridArea: "2 / 1 / 3 / 2", rotation: 90 },
@@ -111,4 +127,5 @@ export function upVectorFor(rotation: Rotation): readonly [number, number] {
   const snap = (n: number) => (Math.round(n) === 0 ? 0 : Math.round(n));
   return [snap(Math.sin(radians)), snap(-Math.cos(radians))];
 }
+
 

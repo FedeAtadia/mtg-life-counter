@@ -97,6 +97,23 @@ describe("seat layouts", () => {
     }
   });
 
+  it.each(counts)("gives the hub a quarter turn at most (%i players)", (n) => {
+    expect([0, 90, 180, -90]).toContain(SEAT_LAYOUTS[n].hubRotation);
+  });
+
+  it("turns the hub only where seats flank the centre", () => {
+    // At five and six a seat occupies the middle of each column, so the centre
+    // lands on their inner edge — exactly where their names run. Turning the
+    // hub keeps it in the seam instead of lying across both names. At every
+    // other count the centre falls on a corner or a seam between rows, and an
+    // upright hub reads better.
+    expect(SEAT_LAYOUTS[5].hubRotation).toBe(90);
+    expect(SEAT_LAYOUTS[6].hubRotation).toBe(90);
+    for (const count of [2, 3, 4]) {
+      expect(SEAT_LAYOUTS[count].hubRotation).toBe(0);
+    }
+  });
+
   it("falls back to a real layout for an unsupported count", () => {
     expect(layoutFor(99)).toBe(SEAT_LAYOUTS[4]);
   });

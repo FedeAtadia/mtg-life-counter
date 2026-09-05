@@ -130,8 +130,14 @@ export default function PlayerPanel({
         style={{ opacity: reason ? 0.55 : 1 }}
       >
         <div
-          className="absolute top-0 w-full truncate px-3 pt-[3cqh] text-center font-medium tracking-wide text-white/55"
-          style={{ fontSize: SIZE.name }}
+          className="absolute top-0 w-full truncate px-3 text-center font-medium tracking-wide text-white/55"
+          style={{
+            fontSize: SIZE.name,
+            // The floor keeps the name clear of the centre hub on small panels:
+            // with five or six players the hub sits on the seam these names run
+            // along, and 3cqh alone put them right under it.
+            paddingTop: "max(3cqh, 16px)",
+          }}
         >
           {displayName(player)}
         </div>
