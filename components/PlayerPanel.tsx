@@ -19,9 +19,9 @@ const DELTA_CHIP_MS = 1600;
  * gets (a negative total, or triple figures).
  */
 const SIZE = {
-  name: "min(10cqh, 6cqw, 30px)",
-  hint: "min(20cqh, 14cqw, 64px)",
-  chip: "min(10cqh, 7cqw, 32px)",
+  name: "min(10cqh, 6cqw, 28px)",
+  hint: "min(17cqh, 12cqw, 52px)",
+  chip: "min(10cqh, 7cqw, 30px)",
   action: "min(7cqh, 4.5cqw, 16px)",
 };
 
@@ -34,8 +34,8 @@ const SIZE = {
  */
 function lifeSizeFor(life: number): string {
   const characters = Math.max(2, String(life).length);
-  const widthShare = Math.min(48, Math.round(96 / characters));
-  return `min(42cqh, ${widthShare}cqw, 200px)`;
+  const widthShare = Math.min(44, Math.round(88 / characters));
+  return `min(38cqh, ${widthShare}cqw, 180px)`;
 }
 
 const formatDelta = (value: number) => (value > 0 ? `+${value}` : `${value}`);
