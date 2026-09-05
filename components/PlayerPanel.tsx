@@ -4,8 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import CommanderDamageOverlay from "./CommanderDamageOverlay";
 import { accentFor, displayName, eliminationReason } from "@/lib/rules";
 import { useGame } from "@/lib/useGame";
-import { useLifeGesture } from "@/lib/useLifeGesture";
-import type { Rotation } from "@/lib/seatLayout";
+import { useSteadyHold } from "@/lib/useSteadyHold";
 import type { Player } from "@/lib/types";
 
 const DELTA_CHIP_MS = 1600;
@@ -15,8 +14,7 @@ const SIZE = {
   name: "min(9cqh, 6cqw, 22px)",
   life: "min(34cqh, 42cqw, 150px)",
   hint: "min(14cqh, 9cqw, 40px)",
-  chip: "min(8cqh, 6cqw, 20px)",
-  dragBadge: "min(12cqh, 8cqw, 30px)",
+  chip: "min(9cqh, 7cqw, 24px)",
   action: "min(7cqh, 4.5cqw, 15px)",
 };
 
@@ -24,15 +22,12 @@ const formatDelta = (value: number) => (value > 0 ? `+${value}` : `${value}`);
 
 interface Props {
   player: Player;
-  /** This seat's rotation, so a drag is measured on the player's own axis. */
-  rotation: Rotation;
   damageOpen: boolean;
   onToggleDamage: () => void;
 }
 
 export default function PlayerPanel({
   player,
-  rotation,
   damageOpen,
   onToggleDamage,
 }: Props) {
@@ -45,7 +40,7 @@ export default function PlayerPanel({
   const [recent, setRecent] = useState(0);
   const recentTimer = useRef<number | null>(null);
 
-  const bump = useCallback(
+  const applyLife = useCallback(
     (delta: number) => {
       dispatch({ type: "ADJUST_LIFE", id: player.id, delta });
       setRecent((value) => value + delta);
@@ -69,9 +64,10 @@ export default function PlayerPanel({
     [],
   );
 
-  const minus = useLifeGesture({ rotation, sign: -1, onChange: bump });
-  const plus = useLifeGesture({ rotation, sign: 1, onChange: bump });
-  const dragging = minus.preview ?? plus.preview;
+  // One point per tap, then a steady climb while held. Which half you press is
+  // the only thing that decides the direction.
+  const minus = useSteadyHold((points) => applyLife(-points));
+  const plus = useSteadyHold((points) => applyLife(points));
 
   return (
     <div
@@ -96,17 +92,17 @@ export default function PlayerPanel({
       {/* Tap zones sit underneath the readout, which is pointer-events-none. */}
       <button
         type="button"
-        aria-label={`${displayName(player)}: lose life. Tap for 1, drag away from yourself for 5 at a time`}
+        aria-label={`${displayName(player)}: lose life. Tap for 1, hold to keep counting`}
         className="absolute top-0 left-0 h-full w-1/2"
         style={{ touchAction: "none" }}
-        {...minus.handlers}
+        {...minus}
       />
       <button
         type="button"
-        aria-label={`${displayName(player)}: gain life. Tap for 1, drag away from yourself for 5 at a time`}
+        aria-label={`${displayName(player)}: gain life. Tap for 1, hold to keep counting`}
         className="absolute top-0 right-0 h-full w-1/2"
         style={{ touchAction: "none" }}
-        {...plus.handlers}
+        {...plus}
       />
 
       <div
@@ -135,30 +131,17 @@ export default function PlayerPanel({
           </span>
         </div>
 
-        {/* One slot, two jobs: the fading tally of recent taps, promoted into a
-            solid badge while a drag is in progress. */}
+        {/* Running tally of the current press, so you can see what a hold has
+            actually done to you. Fades once you stop. */}
         <div
-          className="absolute right-0 bottom-[13cqh] left-0 flex justify-center transition-opacity duration-150"
-          style={{ opacity: dragging !== null || recent !== 0 ? 1 : 0 }}
+          className="tnum absolute right-0 bottom-[13cqh] left-0 text-center font-semibold transition-opacity duration-150"
+          style={{
+            fontSize: SIZE.chip,
+            opacity: recent === 0 ? 0 : 1,
+            color: recent < 0 ? "var(--danger)" : "#5fcf8a",
+          }}
         >
-          <span
-            className="tnum leading-none font-semibold"
-            style={{
-              fontSize: dragging !== null ? SIZE.dragBadge : SIZE.chip,
-              color:
-                (dragging ?? recent) < 0 ? "var(--danger)" : "#5fcf8a",
-              ...(dragging !== null
-                ? {
-                    border: "1px solid currentColor",
-                    borderRadius: "999px",
-                    padding: "0.8cqh 3cqw",
-                    backgroundColor: "rgba(6, 6, 10, 0.72)",
-                  }
-                : null),
-            }}
-          >
-            {formatDelta(dragging ?? recent)}
-          </span>
+          {formatDelta(recent)}
         </div>
       </div>
 

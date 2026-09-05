@@ -6,15 +6,25 @@ import {
   displayName,
 } from "@/lib/rules";
 import { useGame } from "@/lib/useGame";
-import { useHoldRepeat } from "@/lib/useHoldRepeat";
+import { useSteadyHold } from "@/lib/useSteadyHold";
 import type { Player } from "@/lib/types";
 
+/**
+ * Chrome is sized against the overlay; tile contents are sized against their
+ * own tile (see DamageTile). Sizing tile text off the overlay is what used to
+ * break this at high player counts: the tiles got smaller as opponents were
+ * added but their text did not, so five tiles overflowed.
+ */
 const SIZE = {
-  heading: "min(7cqh, 4.5cqw, 15px)",
-  tileName: "min(6cqh, 4cqw, 14px)",
-  tileValue: "min(16cqh, 11cqw, 44px)",
-  tileHint: "min(9cqh, 6cqw, 22px)",
+  heading: "min(6.5cqh, 4cqw, 14px)",
+  done: "min(7cqh, 4.5cqw, 16px)",
 };
+
+/** Columns that keep tiles as square as possible in a wide, short panel. */
+function columnsFor(opponentCount: number): number {
+  if (opponentCount <= 3) return Math.max(1, opponentCount);
+  return opponentCount === 4 ? 2 : 3;
+}
 
 interface Props {
   player: Player;
@@ -31,47 +41,75 @@ export default function CommanderDamageOverlay({
   opponents,
   onClose,
 }: Props) {
-  const columns = opponents.length <= 3 ? opponents.length : 3;
+  const columns = columnsFor(opponents.length);
 
   return (
     <div
-      className="no-select absolute inset-0 z-20 flex flex-col gap-[2cqh] rounded-2xl bg-[#0a0a11]/96 p-[3cqh]"
+      className="no-select absolute inset-0 z-20 rounded-2xl bg-[#0a0a11]/96"
       style={{ containerType: "size" }}
     >
-      <div className="flex shrink-0 items-center justify-between">
+      {/* Tapping the backdrop closes too, so there are two ways out. */}
+      <button
+        type="button"
+        aria-label="Close commander damage"
+        tabIndex={-1}
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
+
+      <div className="relative flex h-full w-full flex-col gap-[2cqh] p-[3cqh]">
         <span
-          className="font-semibold tracking-widest text-white/50 uppercase"
+          className="shrink-0 text-center font-semibold tracking-widest text-white/45 uppercase"
           style={{ fontSize: SIZE.heading }}
         >
           Damage taken from
         </span>
+
+        <div
+          className="grid min-h-0 flex-1 gap-[2cqh]"
+          style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+        >
+          {opponents.map((opponent) => (
+            <DamageTile
+              key={opponent.id}
+              targetId={player.id}
+              source={opponent}
+              value={player.commanderDamage[opponent.id] ?? 0}
+            />
+          ))}
+        </div>
+
+        {/* Its own full-width row rather than a corner pill: at six players the
+            corner version was a ~13px target, which is not tappable. */}
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close commander damage"
-          className="rounded-full border border-white/15 px-[2.5cqw] py-[1cqh] text-white/70 active:bg-white/10"
-          style={{ fontSize: SIZE.heading }}
+          className="shrink-0 rounded-xl bg-white/90 py-[3cqh] font-semibold tracking-wide text-[#0a0a11] uppercase active:bg-white"
+          // 44px is the smallest comfortable touch target; hold that floor even
+          // on the shortest panel rather than letting it scale away.
+          style={{ fontSize: SIZE.done, minHeight: "max(12cqh, 44px)" }}
         >
           Done
         </button>
       </div>
-
-      <div
-        className="grid min-h-0 flex-1 gap-[2cqh]"
-        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
-      >
-        {opponents.map((opponent) => (
-          <DamageTile
-            key={opponent.id}
-            targetId={player.id}
-            source={opponent}
-            value={player.commanderDamage[opponent.id] ?? 0}
-          />
-        ))}
-      </div>
     </div>
   );
 }
+
+/**
+ * Each tile is its own size container, so its text scales with the tile it is
+ * actually drawn in rather than with the panel behind it.
+ */
+/**
+ * Weighted towards width on purpose. Tiles come out wide and short (roughly
+ * 85x57 at six players on a 390px phone), so sizing mostly off height starves
+ * the text — that is what left the opponent names at 8px.
+ */
+const TILE = {
+  name: "min(26cqh, 16cqw, 15px)",
+  value: "min(44cqh, 40cqw, 44px)",
+  hint: "min(24cqh, 12cqw, 20px)",
+};
 
 function DamageTile({
   targetId,
@@ -94,13 +132,15 @@ function DamageTile({
       delta,
     });
 
-  const minus = useHoldRepeat(() => adjust(-1));
-  const plus = useHoldRepeat(() => adjust(1));
+  // Same press behaviour as a life total: one per tap, steady while held.
+  const minus = useSteadyHold((points) => adjust(-points));
+  const plus = useSteadyHold((points) => adjust(points));
 
   return (
     <div
       className="relative flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl border"
       style={{
+        containerType: "size",
         borderColor: lethal
           ? "var(--danger)"
           : `color-mix(in oklab, ${accent} 40%, #262633)`,
@@ -122,27 +162,27 @@ function DamageTile({
         {...plus}
       />
 
-      <div className="pointer-events-none flex flex-col items-center">
+      <div className="pointer-events-none flex w-full flex-col items-center px-[4cqw]">
         <span
-          className="max-w-full truncate px-1 text-white/55"
-          style={{ fontSize: SIZE.tileName }}
+          className="max-w-full truncate text-white/55"
+          style={{ fontSize: TILE.name }}
         >
           {displayName(source)}
         </span>
-        <div className="flex items-baseline gap-[6%]">
-          <span className="text-white/20" style={{ fontSize: SIZE.tileHint }}>
+        <div className="flex items-baseline gap-[8cqw]">
+          <span className="text-white/20" style={{ fontSize: TILE.hint }}>
             &minus;
           </span>
           <span
             className="tnum leading-none font-semibold"
             style={{
-              fontSize: SIZE.tileValue,
+              fontSize: TILE.value,
               color: lethal ? "var(--danger)" : undefined,
             }}
           >
             {value}
           </span>
-          <span className="text-white/20" style={{ fontSize: SIZE.tileHint }}>
+          <span className="text-white/20" style={{ fontSize: TILE.hint }}>
             +
           </span>
         </div>
