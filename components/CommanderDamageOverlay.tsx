@@ -45,7 +45,9 @@ export default function CommanderDamageOverlay({
 
   return (
     <div
-      className="no-select absolute inset-0 z-20 rounded-2xl bg-[#0a0a11]/96"
+      // Fully opaque: at 96% the panel's own name and eliminated badge ghosted
+      // through and collided with the heading.
+      className="no-select absolute inset-0 z-20 rounded-2xl bg-[#0a0a11]"
       style={{ containerType: "size" }}
     >
       {/* Tapping the backdrop closes too, so there are two ways out. */}
@@ -101,14 +103,18 @@ export default function CommanderDamageOverlay({
  * actually drawn in rather than with the panel behind it.
  */
 /**
- * Weighted towards width on purpose. Tiles come out wide and short (roughly
- * 85x57 at six players on a 390px phone), so sizing mostly off height starves
- * the text — that is what left the opponent names at 8px.
+ * Weighted towards width on purpose. Tiles come out wide and short at high
+ * player counts (roughly 85x57 at six on a 390px phone), so sizing mostly off
+ * height starves the text — that is what left the opponent names at 8px.
+ *
+ * The caps are set for the other extreme. A two player game gives the single
+ * tile most of the panel, and low ceilings there stranded a 44px number in a
+ * 355x303 box.
  */
 const TILE = {
-  name: "min(26cqh, 16cqw, 15px)",
-  value: "min(44cqh, 40cqw, 44px)",
-  hint: "min(24cqh, 12cqw, 20px)",
+  name: "min(26cqh, 16cqw, 40px)",
+  value: "min(44cqh, 38cqw, 150px)",
+  hint: "min(24cqh, 12cqw, 56px)",
 };
 
 function DamageTile({
