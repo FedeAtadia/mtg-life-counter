@@ -34,7 +34,11 @@ export default function PlayerSeat({ seat, player, onToggleDamage }: Props) {
           transform: `translate(-50%, -50%) rotate(${seat.rotation}deg)`,
         }}
       >
-        <PlayerPanel player={player} onToggleDamage={onToggleDamage} />
+        <PlayerPanel
+          player={player}
+          rotation={seat.rotation}
+          onToggleDamage={onToggleDamage}
+        />
       </div>
     </div>
   );

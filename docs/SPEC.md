@@ -46,26 +46,53 @@ files that hold it up.
 - **LIFE-2** Life is never clamped. It goes below zero and can be gained back.
 - **LIFE-3** A press changes only the seat it landed on.
 - **LIFE-4** A chip shows the running net of the current exchange, signed, and
-  clears 1.6 seconds after the last press.
+  clears 1.6 seconds after the last change. It counts a slide notch by notch,
+  so the number being dialled in is visible before the finger lifts.
 - **LIFE-5** A seat that is already out keeps counting.
 
 ## HOLD — How a press counts
 
-*Enforced by `lib/holdRate.ts`, `lib/useSteadyHold.ts`. Covered by
-`lib/holdRate.test.ts`, `lib/useSteadyHold.test.ts`.*
+*Enforced by `lib/holdSlider.ts`, `lib/useHoldSlider.ts`. Covered by
+`lib/holdSlider.test.ts`, `lib/useHoldSlider.test.ts`.*
 
-- **HOLD-1** A tap is worth exactly one point, counted on press rather than on
-  release, so the number moves under the thumb.
-- **HOLD-2** Held past 500 ms, the total jumps by ten and then by another ten
-  every second: from 40 a press passes through 41, lands on 50, then 60.
-- **HOLD-3** Points are derived from elapsed time, never from a count of timer
-  ticks. A throttled or late timer must not undercount.
-- **HOLD-4** Releasing, cancelling, or losing pointer capture all pay out the
-  remainder of the hold and then stop counting.
+A press is one of two things: a tap, or a slider. Moving far enough is what
+turns one into the other — there is no clock in this anywhere.
+
+- **HOLD-1** A tap is worth exactly one point, paid when the finger lifts.
+  Until it lifts there is no telling a tap from the start of a slide.
+- **HOLD-2** A press becomes a slider by travelling, never by waiting. A press
+  that stays put is a tap however long it is held.
+- **HOLD-3** Points are derived from the distance travelled, never from a count
+  of move events. A pointer stream that coalesces or drops moves — every phone
+  does under load — must not miscount.
+- **HOLD-4** Releasing, cancelling, or losing pointer capture all settle the
+  gesture and then stop counting.
 - **HOLD-5** Life totals and commander damage counters use the same rule, so a
   press behaves the same wherever the thumb lands.
-- **HOLD-6** Unmounting mid-hold stops counting.
+- **HOLD-6** Unmounting mid-gesture stops counting.
 - **HOLD-7** A press never counts into a stale callback after a re-render.
+- **HOLD-8** The first 16 px of travel is free, and every 32 px after it is
+  worth 5 points at a rate that never changes: nothing at 47 px, 5 at 48 px, 10
+  at 80 px, and the tenth notch worth exactly what the first was.
+- **HOLD-9** The half that was pressed stays the only thing that sets the
+  direction (LIFE-1). A slide sets how much and never which way, so travel
+  either way along the axis counts the same and a press that began on "−" can
+  never leave the total higher than it found it.
+- **HOLD-10** Travel is measured from where the finger landed, and only along
+  the axis that seat reads as up and down (SEAT-6). Drift across that axis is
+  discarded, and the free 16 px is what keeps drift along it from turning a tap
+  into a slide.
+- **HOLD-11** A press is worth its tap until the slide is first worth
+  something. From that moment the tap is gone and the slide has it: sliding
+  back gives the points back notch for notch, and returning to where the finger
+  landed leaves the total untouched, which is how a slide is called off.
+- **HOLD-12** The moment a press becomes a slide it says so: the hint on the
+  pressed side lights up, and the device buzzes briefly where it can.
+- **HOLD-13** A slide is never worth more than there is to take. Removing is
+  capped at what the counter held when the press landed, so a slide that runs
+  past the floor at zero (CMDR-3) and part of the way back cannot pay the
+  difference out as damage on the half of the tile that removes it. A life
+  total has no floor and so has no cap.
 
 ## CMDR — Commander damage
 
@@ -174,6 +201,8 @@ Covered by `lib/gameReducer.test.ts`, `components/CommanderDamageOverlay.test.ts
   than rendering nothing.
 - **SEAT-5** A rotated panel is authored with its width and height swapped, in
   CSS alone — no measuring and no resize observers.
+- **SEAT-6** A seat and the slide gesture take their sense of “up” from one
+  function, so the two can never disagree about which way a player is facing.
 
 ## TIMER — The game clock
 
@@ -283,8 +312,12 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   never rendered for real — jsdom does not lay anything out. `SEAT-5` in
   particular is checked by eye, not by test.
 - **Real pointer capture.** jsdom has no `setPointerCapture`, so the path where
-  a thumb slides off a button and the hold survives is exercised only through
-  the guard around it.
+  a thumb slides off a button and the gesture survives is exercised only
+  through the guard around it. Any slide worth much leaves the button it
+  started on, so capture is what makes HOLD-8 work on a phone, and nothing
+  here proves it.
+- **The buzz.** jsdom has no `navigator.vibrate`. The feature test guarding it
+  is covered; the buzz itself (HOLD-12) is checked by hand on a device.
 - **Touch behaviour.** `touch-action: none` and the absence of scroll-on-hold
   are not testable here.
 - **Render scope.** The clock is kept in the centre hub so a passing second
