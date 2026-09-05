@@ -14,6 +14,7 @@ import {
   minusZone,
   panelFor,
   plusZone,
+  FREE_PX,
   NOTCH_PX,
   pressAndSlide,
   renderBoard,
@@ -117,13 +118,13 @@ describe("counting life", () => {
     expect(lifeOn(panel)).toBe(39);
   });
 
-  it("stays a tap when the thumb rolls inside the free notch (HOLD-10)", () => {
+  it("stays a tap when the thumb rolls inside the free stretch (HOLD-10)", () => {
     // A thumb that slides off a button on its way up used to be a tap and has
-    // to stay one. This is the whole job of the free notch.
+    // to stay one. This is the whole job of the free stretch.
     renderBoard();
     const panel = panelFor("Player 1");
 
-    drift(minusZone(panel), 2 * NOTCH_PX - 1, seatOne());
+    drift(minusZone(panel), FREE_PX + NOTCH_PX - 1, seatOne());
 
     expect(lifeOn(panel)).toBe(39);
   });
@@ -206,12 +207,12 @@ describe("the arming cue (HOLD-12)", () => {
     expect(isArmed(hintOn(panel, "plus"))).toBe(false);
   });
 
-  it("stays dark while the press is still inside the free notch", () => {
+  it("stays dark while the press is still inside the free stretch", () => {
     renderBoard();
     const panel = panelFor("Player 1");
 
     fireEvent.pointerDown(minusZone(panel), { clientX: 0, clientY: 0 });
-    fireEvent.pointerMove(minusZone(panel), { clientX: 0, clientY: -(2 * NOTCH_PX - 1) });
+    fireEvent.pointerMove(minusZone(panel), { clientX: 0, clientY: -(FREE_PX + NOTCH_PX - 1) });
 
     expect(isArmed(hintOn(panel, "minus"))).toBe(false);
   });

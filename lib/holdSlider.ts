@@ -8,9 +8,9 @@
  * points for every notch, at a rate that never changes however far it runs.
  *
  * No clock comes into this. Distance alone decides which of the two a press
- * was, and the first notch of travel is what a press spends proving it is a
- * slide — without that free notch a thumb rolling half a centimetre on its way
- * up would turn a tap worth one into a slide worth five.
+ * was, and the first stretch of travel is free — it is what a press spends
+ * proving it is a slide. Without it a thumb rolling a few millimetres on its
+ * way up would turn a tap worth one into a slide worth five.
  *
  * The slide sets how much and never which way — the half of the panel that was
  * pressed already decided that (LIFE-1). So travel counts the same in either
@@ -30,14 +30,17 @@ export const NOTCH_POINTS = 5;
 export const NOTCH_PX = 32;
 
 /**
- * How many notches of travel are swallowed before the counter moves at all.
+ * How much travel is swallowed before a slide starts counting notches at all.
  *
  * This is the whole of what separates a tap from a slide, now that no clock
  * does. Big enough that a thumb rolling off a button cannot spend it by
- * accident, small enough that a deliberate slide starts paying quickly: at one
- * notch a tap survives 63 px of drift, and the first 5 lands at 64 px.
+ * accident, small enough that a deliberate slide starts paying quickly: at
+ * 16 px a tap survives 47 px of drift, and the first 5 lands at 48 px.
+ *
+ * Its own distance rather than a whole notch, so it can be tuned by feel
+ * without moving what a notch is worth.
  */
-export const FREE_NOTCHES = 1;
+export const FREE_PX = 16;
 
 /**
  * How far a drag of (dx, dy) screen pixels has carried along the axis the
@@ -63,16 +66,17 @@ export function travelAlongAxis(
 }
 
 /**
- * How many notches this much travel actually pays for, the free one already
- * taken off. Zero means the press is still a tap.
+ * How many notches this much travel actually pays for, the free stretch
+ * already taken off. Zero means the press is still a tap.
  *
  * Distance only. Which way along the axis the finger went does not reach this
  * function, because it is not allowed to change anything (HOLD-9).
  */
 export function notchesForTravel(travelPx: number): number {
   if (!Number.isFinite(travelPx)) return 0;
-  const travelled = Math.floor(Math.abs(travelPx) / NOTCH_PX);
-  return Math.max(0, travelled - FREE_NOTCHES);
+  const paying = Math.abs(travelPx) - FREE_PX;
+  if (paying < 0) return 0;
+  return Math.floor(paying / NOTCH_PX);
 }
 
 /**

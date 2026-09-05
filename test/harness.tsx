@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { act } from "react";
 import GameBoard from "@/components/GameBoard";
-import { FREE_NOTCHES, NOTCH_PX } from "@/lib/holdSlider";
+import { FREE_PX, NOTCH_PX } from "@/lib/holdSlider";
 import { layoutFor, upVectorFor } from "@/lib/seatLayout";
 import { saveGame } from "@/lib/storage";
 import { GameProvider } from "@/lib/useGame";
@@ -107,13 +107,13 @@ interface Gesture {
 /**
  * How far the finger has to travel for a slide to be worth this many notches.
  *
- * The first notch of travel is free (HOLD-8), so a test that wants three
- * notches of value has to ask for four notches of distance. Kept here rather
- * than in each test, so the tests read in what they are worth.
+ * The first stretch of travel is free (HOLD-8), so a test that wants three
+ * notches of value has to ask for that much distance plus the free stretch.
+ * Kept here rather than in each test, so the tests read in what they are worth.
  */
 function travelFor(payingNotches: number): number {
   if (payingNotches === 0) return 0;
-  const size = (Math.abs(payingNotches) + FREE_NOTCHES) * NOTCH_PX;
+  const size = FREE_PX + Math.abs(payingNotches) * NOTCH_PX;
   return Math.sign(payingNotches) * size;
 }
 
@@ -151,7 +151,7 @@ export function pressAndSlide(
 
 /**
  * A press that wanders this many raw pixels along the seat's axis and lifts —
- * for probing inside the free notch, where a slide is not yet worth anything.
+ * for probing inside the free stretch, where a slide is not yet worth anything.
  */
 export function drift(zone: HTMLElement, px: number, rotation: Rotation) {
   const [ux, uy] = upVectorFor(rotation);
@@ -172,4 +172,4 @@ export function holdStill(zone: HTMLElement, advance: (ms: number) => void) {
   fireEvent.pointerUp(zone);
 }
 
-export { FREE_NOTCHES, NOTCH_PX };
+export { FREE_PX, NOTCH_PX };

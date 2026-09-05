@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  FREE_NOTCHES,
+  FREE_PX,
   NOTCH_POINTS,
   NOTCH_PX,
   notchesForTravel,
@@ -12,34 +12,33 @@ import type { Rotation } from "./seatLayout";
 
 const ROTATIONS: Rotation[] = [0, 90, 180, -90];
 
-/** Travel worth this many paying notches, the free one included. */
-const px = (payingNotches: number) =>
-  (payingNotches + FREE_NOTCHES) * NOTCH_PX;
+/** Travel worth this many paying notches, the free stretch included. */
+const px = (payingNotches: number) => FREE_PX + payingNotches * NOTCH_PX;
 
 describe("the figures the spec names", () => {
-  it("gives the first notch away, then pays five for every 32 px", () => {
+  it("swallows the first 16 px, then pays five for every 32 px", () => {
     // Spelled out rather than read back from the constants. Every other test
     // here derives its numbers from them, so on their own they would follow a
     // changed constant anywhere it went and HOLD-8 would quietly stop being
     // true.
     expect(NOTCH_PX).toBe(32);
     expect(NOTCH_POINTS).toBe(5);
-    expect(FREE_NOTCHES).toBe(1);
+    expect(FREE_PX).toBe(16);
 
-    expect(pointsForTravel(31)).toBe(0);
-    expect(pointsForTravel(32)).toBe(0);
-    expect(pointsForTravel(63)).toBe(0);
-    expect(pointsForTravel(64)).toBe(5);
-    expect(pointsForTravel(96)).toBe(10);
-    expect(pointsForTravel(160)).toBe(20);
+    expect(pointsForTravel(15)).toBe(0);
+    expect(pointsForTravel(16)).toBe(0);
+    expect(pointsForTravel(47)).toBe(0);
+    expect(pointsForTravel(48)).toBe(5);
+    expect(pointsForTravel(80)).toBe(10);
+    expect(pointsForTravel(144)).toBe(20);
   });
 });
 
-describe("the free notch (HOLD-2, HOLD-8)", () => {
+describe("the free stretch (HOLD-2, HOLD-8)", () => {
   it("is worth nothing, however far into it the finger goes", () => {
     // This is the whole of what tells a tap from a slide now that no clock
     // does. A thumb rolling off a button has to stay a tap.
-    for (let travel = 0; travel < NOTCH_PX * FREE_NOTCHES + NOTCH_PX; travel++) {
+    for (let travel = 0; travel < FREE_PX + NOTCH_PX; travel++) {
       expect(pointsForTravel(travel)).toBe(0);
     }
   });
@@ -51,14 +50,14 @@ describe("the free notch (HOLD-2, HOLD-8)", () => {
   });
 
   it("protects a tap from drift in either direction", () => {
-    for (let travel = 0; travel <= 2 * NOTCH_PX - 1; travel++) {
+    for (let travel = 0; travel < FREE_PX + NOTCH_PX; travel++) {
       expect(pointsForTravel(-travel)).toBe(0);
     }
   });
 });
 
 describe("what a slide is worth (HOLD-8)", () => {
-  it("adds another five every notch after the free one", () => {
+  it("adds another five every notch after the free stretch", () => {
     expect(pointsForTravel(px(1))).toBe(5);
     expect(pointsForTravel(px(2))).toBe(10);
     expect(pointsForTravel(px(3))).toBe(15);

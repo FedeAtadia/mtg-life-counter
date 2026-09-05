@@ -88,7 +88,7 @@ export default function PlayerPanel({
     [],
   );
 
-  // One point per tap; hold for a second and it becomes a slider worth five a
+  // One point per tap; travel far enough and it becomes a slider worth five a
   // notch. Which half you press is the only thing that decides the direction —
   // the slide only ever says how far (HOLD-9).
   const minus = useHoldSlider(rotation, (points) => applyLife(-points));

@@ -71,16 +71,16 @@ turns one into the other — there is no clock in this anywhere.
   press behaves the same wherever the thumb lands.
 - **HOLD-6** Unmounting mid-gesture stops counting.
 - **HOLD-7** A press never counts into a stale callback after a re-render.
-- **HOLD-8** The first notch of travel is free, and every 32 px after it is
-  worth 5 points at a rate that never changes: nothing at 32 px, 5 at 64 px, 10
-  at 96 px, and the tenth notch worth exactly what the first was.
+- **HOLD-8** The first 16 px of travel is free, and every 32 px after it is
+  worth 5 points at a rate that never changes: nothing at 47 px, 5 at 48 px, 10
+  at 80 px, and the tenth notch worth exactly what the first was.
 - **HOLD-9** The half that was pressed stays the only thing that sets the
   direction (LIFE-1). A slide sets how much and never which way, so travel
   either way along the axis counts the same and a press that began on "−" can
   never leave the total higher than it found it.
 - **HOLD-10** Travel is measured from where the finger landed, and only along
   the axis that seat reads as up and down (SEAT-6). Drift across that axis is
-  discarded, and the free notch is what keeps drift along it from turning a tap
+  discarded, and the free 16 px is what keeps drift along it from turning a tap
   into a slide.
 - **HOLD-11** A press is worth its tap until the slide is first worth
   something. From that moment the tap is gone and the slide has it: sliding

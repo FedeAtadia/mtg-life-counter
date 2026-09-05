@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FREE_NOTCHES, NOTCH_PX } from "./holdSlider";
+import { FREE_PX, NOTCH_PX } from "./holdSlider";
 import { upVectorFor } from "./seatLayout";
 import { useHoldSlider } from "./useHoldSlider";
 import type { Rotation } from "./seatLayout";
@@ -28,13 +28,12 @@ const pointerAt = (x: number, y: number) =>
 const total = (onStep: { mock: { calls: unknown[][] } }) =>
   onStep.mock.calls.reduce((sum, [points]) => sum + (points as number), 0);
 
-/** Travel worth this many paying notches, the free one included. */
+/** Travel worth this many paying notches, the free stretch included. */
 const travelFor = (payingNotches: number) =>
   payingNotches === 0
     ? 0
     : Math.sign(payingNotches) *
-      (Math.abs(payingNotches) + FREE_NOTCHES) *
-      NOTCH_PX;
+      (FREE_PX + Math.abs(payingNotches) * NOTCH_PX);
 
 /**
  * A screen offset that reads as this far away from the player at this seat.
@@ -165,26 +164,26 @@ describe("nothing here is timed (HOLD-2)", () => {
   });
 });
 
-describe("the free notch (HOLD-8, HOLD-10)", () => {
+describe("the free stretch (HOLD-8, HOLD-10)", () => {
   it("counts nothing for a press that wanders inside it", () => {
     const onStep = vi.fn();
     const s = slider(onStep);
 
     s.down();
-    for (let px = 1; px < 2 * NOTCH_PX; px++) s.driftTo(px);
+    for (let px = 1; px < FREE_PX + NOTCH_PX; px++) s.driftTo(px);
 
     expect(onStep).not.toHaveBeenCalled();
     expect(s.armed()).toBe(false);
   });
 
   it("still pays the tap when a drifting press is lifted", () => {
-    // This is what the free notch is for. A thumb that rolls off the button on
-    // its way up used to be a tap and has to stay one.
+    // This is what the free stretch is for. A thumb that rolls off the button
+    // on its way up used to be a tap and has to stay one.
     const onStep = vi.fn();
     const s = slider(onStep);
 
     s.down();
-    s.driftTo(2 * NOTCH_PX - 1);
+    s.driftTo(FREE_PX + NOTCH_PX - 1);
     s.up();
 
     expect(total(onStep)).toBe(1);
@@ -195,7 +194,7 @@ describe("the free notch (HOLD-8, HOLD-10)", () => {
     const s = slider(onStep);
 
     s.down();
-    s.driftTo(2 * NOTCH_PX);
+    s.driftTo(FREE_PX + NOTCH_PX);
 
     expect(s.armed()).toBe(true);
     expect(total(onStep)).toBe(5);
@@ -216,7 +215,7 @@ describe("the free notch (HOLD-8, HOLD-10)", () => {
 });
 
 describe("sliding (HOLD-8)", () => {
-  it("is worth five for every notch past the free one", () => {
+  it("is worth five for every notch past the free stretch", () => {
     const onStep = vi.fn();
     const s = slider(onStep);
 
@@ -254,7 +253,7 @@ describe("sliding (HOLD-8)", () => {
     for (let px = 1; px <= 4 * NOTCH_PX; px++) s.driftTo(px);
 
     // The finger reports every pixel it crosses; only every thirty-second one
-    // past the free notch is worth anything.
+    // past the free stretch is worth anything.
     expect(onStep.mock.calls.every(([points]) => points !== 0)).toBe(true);
     expect(onStep).toHaveBeenCalledTimes(3);
   });

@@ -32,7 +32,7 @@ interface Point {
  *
  * There is no clock in here. A tap and a slide are told apart by distance
  * alone, and what makes that survive a real thumb — which always drifts — is
- * that the first notch of travel is free (HOLD-8). A press stays a tap until
+ * that the first stretch of travel is free (HOLD-8). A press stays a tap until
  * the slide is worth something, and from that moment the tap is gone and the
  * slide has it.
  */
@@ -106,7 +106,7 @@ export function useHoldSlider(
       at.current = point;
       const worth = due();
       if (!sliding.current) {
-        // Still inside the free notch, so still a tap. Nothing to pay and
+        // Still inside the free stretch, so still a tap. Nothing to pay and
         // nothing to announce.
         if (worth === 0) return;
         sliding.current = true;

@@ -193,7 +193,7 @@ function DamageTile({
     });
 
   // Same press behaviour as a life total: one per tap, and a slider worth five
-  // a notch once held (HOLD-5).
+  // a notch once the finger travels (HOLD-5).
   //
   // Removing is capped at what the counter is actually holding. A counter has a
   // floor at zero (CMDR-3) but a life total does not, so a slide that ran past
