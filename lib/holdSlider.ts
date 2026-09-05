@@ -2,10 +2,15 @@
  * What a press is worth. One rule for life totals and for commander damage, so
  * a press behaves the same wherever you put your thumb.
  *
- * A press is one of two things. Lift within a second and it was a tap, worth a
- * single point. Keep holding and it becomes a slider: the total then moves only
- * as far as the finger does, five points for every notch of travel, at a rate
- * that never changes however long the slide runs.
+ * A press is one of two things. Lift without going anywhere and it was a tap,
+ * worth a single point however long it was held. Travel far enough and it
+ * becomes a slider: the total then moves only as far as the finger does, five
+ * points for every notch, at a rate that never changes however far it runs.
+ *
+ * No clock comes into this. Distance alone decides which of the two a press
+ * was, and the first notch of travel is what a press spends proving it is a
+ * slide — without that free notch a thumb rolling half a centimetre on its way
+ * up would turn a tap worth one into a slide worth five.
  *
  * The slide sets how much and never which way — the half of the panel that was
  * pressed already decided that (LIFE-1). So travel counts the same in either
@@ -14,9 +19,6 @@
  */
 
 import { upVectorFor, type Rotation } from "./seatLayout";
-
-/** How long a press is held before it stops being a tap and becomes a slider. */
-export const ARM_DELAY_MS = 1000;
 
 /** What a tap is worth. */
 export const TAP_POINTS = 1;
@@ -27,10 +29,15 @@ export const NOTCH_POINTS = 5;
 /** How far the finger travels for one notch. About a fingertip's width. */
 export const NOTCH_PX = 32;
 
-/** Whether a press held this long has become a slider. */
-export function isArmed(heldMs: number): boolean {
-  return Number.isFinite(heldMs) && heldMs >= ARM_DELAY_MS;
-}
+/**
+ * How many notches of travel are swallowed before the counter moves at all.
+ *
+ * This is the whole of what separates a tap from a slide, now that no clock
+ * does. Big enough that a thumb rolling off a button cannot spend it by
+ * accident, small enough that a deliberate slide starts paying quickly: at one
+ * notch a tap survives 63 px of drift, and the first 5 lands at 64 px.
+ */
+export const FREE_NOTCHES = 1;
 
 /**
  * How far a drag of (dx, dy) screen pixels has carried along the axis the
@@ -56,14 +63,16 @@ export function travelAlongAxis(
 }
 
 /**
- * How many whole notches this much travel is worth.
+ * How many notches this much travel actually pays for, the free one already
+ * taken off. Zero means the press is still a tap.
  *
  * Distance only. Which way along the axis the finger went does not reach this
  * function, because it is not allowed to change anything (HOLD-9).
  */
 export function notchesForTravel(travelPx: number): number {
   if (!Number.isFinite(travelPx)) return 0;
-  return Math.floor(Math.abs(travelPx) / NOTCH_PX);
+  const travelled = Math.floor(Math.abs(travelPx) / NOTCH_PX);
+  return Math.max(0, travelled - FREE_NOTCHES);
 }
 
 /**

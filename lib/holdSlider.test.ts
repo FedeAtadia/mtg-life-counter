@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  ARM_DELAY_MS,
+  FREE_NOTCHES,
   NOTCH_POINTS,
   NOTCH_PX,
-  isArmed,
   notchesForTravel,
   pointsForTravel,
   travelAlongAxis,
@@ -13,80 +12,80 @@ import type { Rotation } from "./seatLayout";
 
 const ROTATIONS: Rotation[] = [0, 90, 180, -90];
 
+/** Travel worth this many paying notches, the free one included. */
+const px = (payingNotches: number) =>
+  (payingNotches + FREE_NOTCHES) * NOTCH_PX;
+
 describe("the figures the spec names", () => {
-  it("arms after a second, and pays five for every 32 px", () => {
+  it("gives the first notch away, then pays five for every 32 px", () => {
     // Spelled out rather than read back from the constants. Every other test
     // here derives its numbers from them, so on their own they would follow a
-    // changed constant anywhere it went and HOLD-2 and HOLD-8 would quietly
-    // stop being true.
-    expect(ARM_DELAY_MS).toBe(1000);
+    // changed constant anywhere it went and HOLD-8 would quietly stop being
+    // true.
     expect(NOTCH_PX).toBe(32);
     expect(NOTCH_POINTS).toBe(5);
+    expect(FREE_NOTCHES).toBe(1);
 
-    expect(isArmed(999)).toBe(false);
-    expect(isArmed(1000)).toBe(true);
     expect(pointsForTravel(31)).toBe(0);
-    expect(pointsForTravel(32)).toBe(5);
-    expect(pointsForTravel(96)).toBe(15);
+    expect(pointsForTravel(32)).toBe(0);
+    expect(pointsForTravel(63)).toBe(0);
+    expect(pointsForTravel(64)).toBe(5);
+    expect(pointsForTravel(96)).toBe(10);
+    expect(pointsForTravel(160)).toBe(20);
   });
 });
 
-describe("arming (HOLD-1, HOLD-2)", () => {
-  it("is still a tap until a whole second has passed", () => {
-    expect(isArmed(0)).toBe(false);
-    expect(isArmed(500)).toBe(false);
-    expect(isArmed(ARM_DELAY_MS - 1)).toBe(false);
+describe("the free notch (HOLD-2, HOLD-8)", () => {
+  it("is worth nothing, however far into it the finger goes", () => {
+    // This is the whole of what tells a tap from a slide now that no clock
+    // does. A thumb rolling off a button has to stay a tap.
+    for (let travel = 0; travel < NOTCH_PX * FREE_NOTCHES + NOTCH_PX; travel++) {
+      expect(pointsForTravel(travel)).toBe(0);
+    }
   });
 
-  it("becomes a slider the moment the second is up", () => {
-    expect(isArmed(ARM_DELAY_MS)).toBe(true);
-    expect(isArmed(ARM_DELAY_MS + 5000)).toBe(true);
+  it("hands over the moment it is spent", () => {
+    expect(notchesForTravel(px(0) - 1)).toBe(0);
+    expect(notchesForTravel(px(1))).toBe(1);
+    expect(pointsForTravel(px(1))).toBe(NOTCH_POINTS);
   });
 
-  it("shrugs off nonsense input", () => {
-    expect(isArmed(Number.NaN)).toBe(false);
-    expect(isArmed(-1000)).toBe(false);
+  it("protects a tap from drift in either direction", () => {
+    for (let travel = 0; travel <= 2 * NOTCH_PX - 1; travel++) {
+      expect(pointsForTravel(-travel)).toBe(0);
+    }
   });
 });
 
 describe("what a slide is worth (HOLD-8)", () => {
-  it("counts nothing until a whole notch has been travelled", () => {
-    expect(pointsForTravel(0)).toBe(0);
-    expect(pointsForTravel(NOTCH_PX - 1)).toBe(0);
-  });
-
-  it("is worth five the moment a notch is complete", () => {
-    expect(pointsForTravel(NOTCH_PX)).toBe(NOTCH_POINTS);
-  });
-
-  it("adds another five every notch after that", () => {
-    expect(pointsForTravel(2 * NOTCH_PX)).toBe(10);
-    expect(pointsForTravel(3 * NOTCH_PX)).toBe(15);
-    expect(pointsForTravel(8 * NOTCH_PX)).toBe(40);
+  it("adds another five every notch after the free one", () => {
+    expect(pointsForTravel(px(1))).toBe(5);
+    expect(pointsForTravel(px(2))).toBe(10);
+    expect(pointsForTravel(px(3))).toBe(15);
+    expect(pointsForTravel(px(8))).toBe(40);
   });
 
   it("keeps a constant rate rather than accelerating", () => {
-    // The complaint about the old behaviour was that it ran away from you: it
-    // was a rate per second, so a press you held a moment too long overshot by
+    // The complaint about the original behaviour was that it ran away from you:
+    // it was a rate per second, so a press held a moment too long overshot by
     // ten. Every notch must be worth exactly what the one before it was.
-    for (let notch = 1; notch <= 12; notch++) {
-      expect(
-        pointsForTravel(notch * NOTCH_PX) -
-          pointsForTravel((notch - 1) * NOTCH_PX),
-      ).toBe(NOTCH_POINTS);
+    for (let notch = 2; notch <= 12; notch++) {
+      expect(pointsForTravel(px(notch)) - pointsForTravel(px(notch - 1))).toBe(
+        NOTCH_POINTS,
+      );
     }
   });
 
   it("only ever lands on multiples of five", () => {
-    for (let px = 0; px <= 500; px += 7) {
-      expect(pointsForTravel(px) % NOTCH_POINTS).toBe(0);
+    for (let travel = 0; travel <= 500; travel += 7) {
+      expect(pointsForTravel(travel) % NOTCH_POINTS).toBe(0);
     }
   });
 
   it("never goes backwards as the slide gets longer", () => {
     let previous = 0;
-    for (let px = 0; px <= 500; px += 3) {
-      const points = pointsForTravel(px);
+    for (let travel = 0; travel <= 500; travel += 3) {
+      const points = pointsForTravel(travel);
       expect(points).toBeGreaterThanOrEqual(previous);
       previous = points;
     }
@@ -100,24 +99,24 @@ describe("what a slide is worth (HOLD-8)", () => {
 
 describe("a slide with a floor under it (HOLD-13)", () => {
   it("is worth no more than the limit allows", () => {
-    expect(pointsForTravel(3 * NOTCH_PX, 5)).toBe(5);
-    expect(pointsForTravel(10 * NOTCH_PX, 5)).toBe(5);
+    expect(pointsForTravel(px(3), 5)).toBe(5);
+    expect(pointsForTravel(px(10), 5)).toBe(5);
   });
 
   it("leaves a slide under the limit alone", () => {
-    expect(pointsForTravel(2 * NOTCH_PX, 50)).toBe(10);
+    expect(pointsForTravel(px(2), 50)).toBe(10);
   });
 
   it("is worth nothing at all when there is nothing to take", () => {
     // A counter already at zero: sliding on the half that removes damage has
     // to stay a complete no-op however far the finger goes (CMDR-3).
-    for (let px = 0; px <= 400; px += 13) {
-      expect(pointsForTravel(px, 0)).toBe(0);
+    for (let travel = 0; travel <= 400; travel += 13) {
+      expect(pointsForTravel(travel, 0)).toBe(0);
     }
   });
 
   it("is unlimited when no limit is given", () => {
-    expect(pointsForTravel(9 * NOTCH_PX)).toBe(45);
+    expect(pointsForTravel(px(9))).toBe(45);
   });
 });
 
@@ -126,8 +125,8 @@ describe("which way the slide went (HOLD-9)", () => {
     // The half that was pressed already set the direction. A slide is only
     // ever allowed to say how far — so a thumb that goes the other way still
     // counts, rather than leaving a dead direction under the finger.
-    for (let px = 0; px <= 300; px += 11) {
-      expect(pointsForTravel(-px)).toBe(pointsForTravel(px));
+    for (let travel = 0; travel <= 300; travel += 11) {
+      expect(pointsForTravel(-travel)).toBe(pointsForTravel(travel));
     }
   });
 });

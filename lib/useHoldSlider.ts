@@ -7,13 +7,7 @@ import {
   useState,
   type PointerEvent,
 } from "react";
-import {
-  ARM_DELAY_MS,
-  TAP_POINTS,
-  isArmed,
-  pointsForTravel,
-  travelAlongAxis,
-} from "./holdSlider";
+import { TAP_POINTS, pointsForTravel, travelAlongAxis } from "./holdSlider";
 import type { Rotation } from "./seatLayout";
 
 /** Long enough to feel through a phone case, short enough not to be a rattle. */
@@ -25,59 +19,52 @@ interface Point {
 }
 
 /**
- * A button that is worth one point per tap, and becomes a slider when held.
+ * A button that is worth one point per tap, and becomes a slider once the
+ * finger travels far enough.
  *
- * Returns `armed` — whether the slider has engaged, for the panel to show — and
- * the handlers to spread onto the pressable element. Give that element
+ * Returns `armed` — whether the slide has taken over, for the panel to show —
+ * and the handlers to spread onto the pressable element. Give that element
  * `touch-action: none`, or the slide turns into a page scroll.
  *
  * `rotation` is the seat's, and is what tells a slide which way is up for the
  * player doing it. Everything else about the press is direction-blind: the
  * caller applies the sign, so this hook only ever reports magnitudes.
  *
- * Only one gesture lives on a press, and a clock decides which. An earlier
- * version chose between a tap and a drag by whether the finger moved first,
- * which does not survive a real thumb — a thumb always drifts. Holding still
- * for a second is something you can only do on purpose.
+ * There is no clock in here. A tap and a slide are told apart by distance
+ * alone, and what makes that survive a real thumb — which always drifts — is
+ * that the first notch of travel is free (HOLD-8). A press stays a tap until
+ * the slide is worth something, and from that moment the tap is gone and the
+ * slide has it.
  */
 export function useHoldSlider(
   rotation: Rotation,
   onStep: (points: number) => void,
   /**
    * The most a slide here can ever be worth, for a counter with a floor under
-   * it. Read once, when the slider arms — it drops as the slide spends it, and
+   * it. Read once, when the finger lands — it drops as the slide spends it, and
    * a limit that moved underneath the gesture would refund itself (HOLD-13).
    */
   limit = Number.POSITIVE_INFINITY,
 ) {
   const onStepRef = useRef(onStep);
   const latestLimit = useRef(limit);
-  /** The limit as it stood when this gesture armed. */
-  const armedLimit = useRef(Number.POSITIVE_INFINITY);
+  /** The limit as it stood when this press landed. */
+  const pressedLimit = useRef(Number.POSITIVE_INFINITY);
   const pressed = useRef(false);
-  const pressedAt = useRef(0);
-  /** Where the finger was when the slider armed. Null until it has. */
-  const origin = useRef<Point | null>(null);
-  /** Where the finger is now, so arming can take its origin from it. */
+  /** Where the finger landed. Travel, and so everything, is measured from here. */
+  const origin = useRef<Point>({ x: 0, y: 0 });
+  /** Where the finger is now. */
   const at = useRef<Point>({ x: 0, y: 0 });
+  /** Whether this press has become a slide. Once true it stays true. */
+  const sliding = useRef(false);
   /** Points already sent this press, so a move only sends the difference. */
   const sent = useRef(0);
-  const timer = useRef<number | null>(null);
   const [armed, setArmed] = useState(false);
 
   useEffect(() => {
     onStepRef.current = onStep;
     latestLimit.current = limit;
   });
-
-  const clearTimer = useCallback(() => {
-    if (timer.current !== null) {
-      window.clearTimeout(timer.current);
-      timer.current = null;
-    }
-  }, []);
-
-  useEffect(() => clearTimer, [clearTimer]);
 
   /** Moves the total to what the gesture is worth, by sending the difference. */
   const settle = useCallback((due: number) => {
@@ -89,75 +76,68 @@ export function useHoldSlider(
     onStepRef.current(owed);
   }, []);
 
-  /** What the slider is worth right now. Nothing until it has armed. */
-  const due = useCallback(() => {
-    const from = origin.current;
-    if (from === null) return 0;
-    return pointsForTravel(
-      travelAlongAxis(rotation, at.current.x - from.x, at.current.y - from.y),
-      armedLimit.current,
-    );
-  }, [rotation]);
-
-  const arm = useCallback(() => {
-    if (!pressed.current || origin.current !== null) return;
-    clearTimer();
-    // Where the finger is now, not where it landed a second ago. A thumb wanders
-    // while it waits, and that wandering is not a slide.
-    origin.current = { ...at.current };
-    armedLimit.current = latestLimit.current;
-    setArmed(true);
-    // Absent on iOS Safari and in jsdom, so it can only ever be a bonus on top
-    // of the panel lighting up.
-    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
-      navigator.vibrate(ARM_BUZZ_MS);
-    }
-  }, [clearTimer]);
-
-  const start = useCallback(
-    (point: Point) => {
-      clearTimer();
-      pressed.current = true;
-      pressedAt.current = Date.now();
-      origin.current = null;
-      sent.current = 0;
-      at.current = point;
-      setArmed(false);
-      // Arms a press that never moves, so the cue lands on time rather than
-      // waiting for a finger that is already still.
-      timer.current = window.setTimeout(arm, ARM_DELAY_MS);
-    },
-    [arm, clearTimer],
+  /** What the slide is worth right now. Nothing until it clears the free notch. */
+  const due = useCallback(
+    () =>
+      pointsForTravel(
+        travelAlongAxis(
+          rotation,
+          at.current.x - origin.current.x,
+          at.current.y - origin.current.y,
+        ),
+        pressedLimit.current,
+      ),
+    [rotation],
   );
+
+  const start = useCallback((point: Point) => {
+    pressed.current = true;
+    sliding.current = false;
+    sent.current = 0;
+    origin.current = point;
+    at.current = point;
+    pressedLimit.current = latestLimit.current;
+    setArmed(false);
+  }, []);
 
   const move = useCallback(
     (point: Point) => {
       if (!pressed.current) return;
       at.current = point;
-      if (origin.current === null) {
-        // Asked of the clock rather than of the timer: a throttled tab fires
-        // timeouts late, and the press is however long it really was.
-        if (!isArmed(Date.now() - pressedAt.current)) return;
-        arm();
+      const worth = due();
+      if (!sliding.current) {
+        // Still inside the free notch, so still a tap. Nothing to pay and
+        // nothing to announce.
+        if (worth === 0) return;
+        sliding.current = true;
+        setArmed(true);
+        // Absent on iOS Safari and in jsdom, so it can only ever be a bonus on
+        // top of the panel lighting up.
+        if (
+          typeof navigator !== "undefined" &&
+          typeof navigator.vibrate === "function"
+        ) {
+          navigator.vibrate(ARM_BUZZ_MS);
+        }
       }
-      settle(due());
+      settle(worth);
     },
-    [arm, due, settle],
+    [due, settle],
   );
 
   /**
-   * Lifting settles the gesture: the tap's point if it never armed, and
-   * whatever the slide came to if it did — which is nothing at all when the
-   * finger came back to where it started, and that is how a slide is called off.
+   * Lifting settles the gesture: the tap's point if the press never became a
+   * slide, and whatever the slide came to if it did — which is nothing at all
+   * when the finger came back to where it landed, and that is how a slide is
+   * called off.
    */
   const release = useCallback(() => {
     if (!pressed.current) return;
     pressed.current = false;
-    clearTimer();
-    settle(origin.current === null ? TAP_POINTS : due());
-    origin.current = null;
+    settle(sliding.current ? due() : TAP_POINTS);
+    sliding.current = false;
     setArmed(false);
-  }, [clearTimer, due, settle]);
+  }, [due, settle]);
 
   return {
     armed,

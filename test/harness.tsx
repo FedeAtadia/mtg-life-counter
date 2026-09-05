@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { act } from "react";
 import GameBoard from "@/components/GameBoard";
-import { ARM_DELAY_MS, NOTCH_PX } from "@/lib/holdSlider";
+import { FREE_NOTCHES, NOTCH_PX } from "@/lib/holdSlider";
 import { layoutFor, upVectorFor } from "@/lib/seatLayout";
 import { saveGame } from "@/lib/storage";
 import { GameProvider } from "@/lib/useGame";
@@ -31,7 +31,7 @@ export function renderBoard(saved?: GameState) {
 /** The panel for one seat, found by the name on its type line. */
 export function panelFor(name: string): HTMLElement {
   const zone = screen.getByLabelText(
-    `${name}: lose life. Tap for 1, hold then slide for 5 at a time`,
+    `${name}: lose life. Tap for 1, slide for 5 at a time`,
   );
   // The tap zones are direct children of the panel root.
   return zone.parentElement as HTMLElement;
@@ -95,49 +95,81 @@ export function tapTimes(zone: HTMLElement, times: number) {
 
 interface Gesture {
   /**
-   * How far to slide, in notches away from the player at that seat. A list is
-   * a slide that changes its mind: the finger visits each stop in turn and
-   * lifts at the last one.
+   * How far to slide, counted in notches that actually pay. A list is a slide
+   * that changes its mind: the finger visits each stop in turn and lifts at the
+   * last one, and 0 is back where it landed.
    */
   notches: number | number[];
   /** The seat's rotation, which is what "away" means here. */
   rotation: Rotation;
-  advance: (ms: number) => void;
 }
 
 /**
- * A press held until the slider arms, slid, and then released.
+ * How far the finger has to travel for a slide to be worth this many notches.
  *
- * The finger starts at the origin and jumps straight to each stop: the hook
- * counts by where the finger is rather than by how many moves got it there, so
- * one move says the same thing as thirty. Requires fake timers.
+ * The first notch of travel is free (HOLD-8), so a test that wants three
+ * notches of value has to ask for four notches of distance. Kept here rather
+ * than in each test, so the tests read in what they are worth.
  */
-export function slide(
-  zone: HTMLElement,
-  { notches, rotation, advance }: Gesture,
-) {
+function travelFor(payingNotches: number): number {
+  if (payingNotches === 0) return 0;
+  const size = (Math.abs(payingNotches) + FREE_NOTCHES) * NOTCH_PX;
+  return Math.sign(payingNotches) * size;
+}
+
+/**
+ * A press, slid, and released.
+ *
+ * The finger lands at the origin and jumps straight to each stop: the hook
+ * counts by where the finger is rather than by how many moves got it there, so
+ * one move says the same thing as thirty.
+ */
+export function slide(zone: HTMLElement, { notches, rotation }: Gesture) {
   const [ux, uy] = upVectorFor(rotation);
   const stops = Array.isArray(notches) ? notches : [notches];
   fireEvent.pointerDown(zone, { clientX: 0, clientY: 0 });
-  act(() => advance(ARM_DELAY_MS));
   for (const stop of stops) {
-    const px = stop * NOTCH_PX;
+    const px = travelFor(stop);
     fireEvent.pointerMove(zone, { clientX: px * ux, clientY: px * uy });
   }
   fireEvent.pointerUp(zone);
 }
 
-/** A press held past the arming delay and then simply lifted, going nowhere. */
-export function holdStill(zone: HTMLElement, advance: (ms: number) => void) {
+/** A slide left mid-gesture with the finger still down, for reading the cue. */
+export function pressAndSlide(
+  zone: HTMLElement,
+  { notches, rotation }: Gesture,
+) {
+  const [ux, uy] = upVectorFor(rotation);
+  const stops = Array.isArray(notches) ? notches : [notches];
   fireEvent.pointerDown(zone, { clientX: 0, clientY: 0 });
-  act(() => advance(ARM_DELAY_MS));
+  for (const stop of stops) {
+    const px = travelFor(stop);
+    fireEvent.pointerMove(zone, { clientX: px * ux, clientY: px * uy });
+  }
+}
+
+/**
+ * A press that wanders this many raw pixels along the seat's axis and lifts —
+ * for probing inside the free notch, where a slide is not yet worth anything.
+ */
+export function drift(zone: HTMLElement, px: number, rotation: Rotation) {
+  const [ux, uy] = upVectorFor(rotation);
+  fireEvent.pointerDown(zone, { clientX: 0, clientY: 0 });
+  fireEvent.pointerMove(zone, { clientX: px * ux, clientY: px * uy });
   fireEvent.pointerUp(zone);
 }
 
-/** A press held past the arming delay and left down, for inspecting the cue. */
-export function pressAndArm(zone: HTMLElement, advance: (ms: number) => void) {
+/**
+ * A press that goes nowhere at all, held while the clock runs on.
+ *
+ * The advancing is the point: nothing about a press is timed any more, so a
+ * press held for five seconds has to be worth exactly what a quick tap is.
+ */
+export function holdStill(zone: HTMLElement, advance: (ms: number) => void) {
   fireEvent.pointerDown(zone, { clientX: 0, clientY: 0 });
-  act(() => advance(ARM_DELAY_MS));
+  act(() => advance(5000));
+  fireEvent.pointerUp(zone);
 }
 
-export { ARM_DELAY_MS, NOTCH_PX };
+export { FREE_NOTCHES, NOTCH_PX };

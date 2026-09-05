@@ -5,8 +5,8 @@ import { NOTCH_POINTS } from "@/lib/holdSlider";
 import { LETHAL_COMMANDER_DAMAGE } from "@/lib/rules";
 import type { Action, GameState } from "@/lib/types";
 import {
-  ARM_DELAY_MS,
   deltaChipOn,
+  drift,
   hintOn,
   holdStill,
   isArmed,
@@ -14,7 +14,8 @@ import {
   minusZone,
   panelFor,
   plusZone,
-  pressAndArm,
+  NOTCH_PX,
+  pressAndSlide,
   renderBoard,
   rotationOf,
   slide,
@@ -105,22 +106,33 @@ describe("counting life", () => {
     }
   });
 
-  it("counts nothing for a press that is held and never slid (HOLD-2)", () => {
-    // Holding is what arms the slider, not what counts. A press that goes
-    // nowhere is not even worth the point a tap would have been.
+  it("is a tap however long a still press is held (HOLD-2)", () => {
+    // Nothing about a press is timed any more. Leaning on a seat for ten
+    // seconds has to be worth exactly what a quick tap is worth.
     renderBoard();
     const panel = panelFor("Player 1");
 
     holdStill(minusZone(panel), advance);
 
-    expect(lifeOn(panel)).toBe(40);
+    expect(lifeOn(panel)).toBe(39);
+  });
+
+  it("stays a tap when the thumb rolls inside the free notch (HOLD-10)", () => {
+    // A thumb that slides off a button on its way up used to be a tap and has
+    // to stay one. This is the whole job of the free notch.
+    renderBoard();
+    const panel = panelFor("Player 1");
+
+    drift(minusZone(panel), 2 * NOTCH_PX - 1, seatOne());
+
+    expect(lifeOn(panel)).toBe(39);
   });
 
   it("takes five a notch once the press has become a slider (HOLD-8)", () => {
     renderBoard();
     const panel = panelFor("Player 1");
 
-    slide(minusZone(panel), { notches: 3, rotation: seatOne(), advance });
+    slide(minusZone(panel), { notches: 3, rotation: seatOne() });
 
     expect(lifeOn(panel)).toBe(40 - 3 * NOTCH_POINTS);
   });
@@ -132,7 +144,7 @@ describe("counting life", () => {
     renderBoard();
     const panel = panelFor("Player 1");
 
-    slide(minusZone(panel), { notches: -3, rotation: seatOne(), advance });
+    slide(minusZone(panel), { notches: -3, rotation: seatOne() });
 
     expect(lifeOn(panel)).toBe(40 - 3 * NOTCH_POINTS);
   });
@@ -141,7 +153,7 @@ describe("counting life", () => {
     renderBoard();
     const panel = panelFor("Player 1");
 
-    slide(plusZone(panel), { notches: -2, rotation: seatOne(), advance });
+    slide(plusZone(panel), { notches: -2, rotation: seatOne() });
 
     expect(lifeOn(panel)).toBe(40 + 2 * NOTCH_POINTS);
   });
@@ -159,7 +171,6 @@ describe("counting life", () => {
       slide(minusZone(panel), {
         notches: 2,
         rotation: rotationOf(4, index),
-        advance,
       });
       expect(lifeOn(panel)).toBe(40 - 2 * NOTCH_POINTS);
     }
@@ -188,19 +199,29 @@ describe("the arming cue (HOLD-12)", () => {
 
     expect(isArmed(hintOn(panel, "minus"))).toBe(false);
 
-    pressAndArm(minusZone(panel), advance);
+    pressAndSlide(minusZone(panel), { notches: 1, rotation: seatOne() });
 
     expect(isArmed(hintOn(panel, "minus"))).toBe(true);
     // The other side stays dark: the lit one is also saying which way it will go.
     expect(isArmed(hintOn(panel, "plus"))).toBe(false);
   });
 
-  it("stays dark while the press is still short enough to be a tap", () => {
+  it("stays dark while the press is still inside the free notch", () => {
     renderBoard();
     const panel = panelFor("Player 1");
 
     fireEvent.pointerDown(minusZone(panel), { clientX: 0, clientY: 0 });
-    act(() => advance(ARM_DELAY_MS - 1));
+    fireEvent.pointerMove(minusZone(panel), { clientX: 0, clientY: -(2 * NOTCH_PX - 1) });
+
+    expect(isArmed(hintOn(panel, "minus"))).toBe(false);
+  });
+
+  it("stays dark however long a still press is held", () => {
+    renderBoard();
+    const panel = panelFor("Player 1");
+
+    fireEvent.pointerDown(minusZone(panel), { clientX: 0, clientY: 0 });
+    act(() => advance(10_000));
 
     expect(isArmed(hintOn(panel, "minus"))).toBe(false);
   });
@@ -209,7 +230,7 @@ describe("the arming cue (HOLD-12)", () => {
     renderBoard();
     const panel = panelFor("Player 1");
 
-    pressAndArm(minusZone(panel), advance);
+    pressAndSlide(minusZone(panel), { notches: 1, rotation: seatOne() });
     fireEvent.pointerUp(minusZone(panel));
 
     expect(isArmed(hintOn(panel, "minus"))).toBe(false);
@@ -220,7 +241,10 @@ describe("the arming cue (HOLD-12)", () => {
     // the panel of the player sitting opposite.
     renderBoard();
 
-    pressAndArm(minusZone(panelFor("Player 1")), advance);
+    pressAndSlide(minusZone(panelFor("Player 1")), {
+      notches: 1,
+      rotation: seatOne(),
+    });
 
     expect(isArmed(hintOn(panelFor("Player 2"), "minus"))).toBe(false);
   });
@@ -243,7 +267,7 @@ describe("the running delta chip", () => {
     renderBoard();
     const panel = panelFor("Player 1");
 
-    slide(minusZone(panel), { notches: 4, rotation: seatOne(), advance });
+    slide(minusZone(panel), { notches: 4, rotation: seatOne() });
 
     expect(deltaChipOn(panel)).toHaveTextContent("-20");
   });

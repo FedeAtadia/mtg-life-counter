@@ -225,21 +225,22 @@ describe("commander damage is real damage", () => {
     slide(addFrom(panel, "Player 2"), {
       notches: 2,
       rotation: rotationOf(4, 0),
-      advance,
     });
 
     expect(damageFrom(panel, "Player 2")).toBe(2 * NOTCH_POINTS);
     expect(lifeOn(panelFor("Player 1"))).toBe(40 - 2 * NOTCH_POINTS);
   });
 
-  it("counts nothing for a press held over a tile and never slid (HOLD-2)", () => {
+  it("is a tap however long a still press is held (HOLD-2)", () => {
+    // Nothing here is timed. A press that goes nowhere is one point of damage,
+    // whether it was quick or leaned on.
     renderBoard(createGame("commander", 4));
     const panel = openDamage("Player 1");
 
     holdStill(addFrom(panel, "Player 2"), advance);
 
-    expect(damageFrom(panel, "Player 2")).toBe(0);
-    expect(lifeOn(panelFor("Player 1"))).toBe(40);
+    expect(damageFrom(panel, "Player 2")).toBe(1);
+    expect(lifeOn(panelFor("Player 1"))).toBe(39);
   });
 
   it("cannot deal damage on the half that removes it (HOLD-13)", () => {
@@ -254,7 +255,6 @@ describe("commander damage is real damage", () => {
     slide(removeFrom(panel, "Player 2"), {
       notches: [3, 1],
       rotation: rotationOf(4, 0),
-      advance,
     });
 
     expect(damageFrom(panel, "Player 2")).toBe(0);
@@ -268,7 +268,6 @@ describe("commander damage is real damage", () => {
     slide(removeFrom(panel, "Player 2"), {
       notches: [4, 2, 0],
       rotation: rotationOf(4, 0),
-      advance,
     });
 
     expect(damageFrom(panel, "Player 2")).toBe(0);

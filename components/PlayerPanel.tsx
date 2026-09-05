@@ -193,14 +193,14 @@ export default function PlayerPanel({
       {/* Tap zones, above the painted card and below everything interactive. */}
       <button
         type="button"
-        aria-label={`${displayName(player)}: lose life. Tap for 1, hold then slide for 5 at a time`}
+        aria-label={`${displayName(player)}: lose life. Tap for 1, slide for 5 at a time`}
         className="absolute top-0 left-0 z-10 h-full w-1/2"
         style={{ touchAction: "none" }}
         {...minus.handlers}
       />
       <button
         type="button"
-        aria-label={`${displayName(player)}: gain life. Tap for 1, hold then slide for 5 at a time`}
+        aria-label={`${displayName(player)}: gain life. Tap for 1, slide for 5 at a time`}
         className="absolute top-0 right-0 z-10 h-full w-1/2"
         style={{ touchAction: "none" }}
         {...plus.handlers}

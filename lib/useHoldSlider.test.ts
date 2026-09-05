@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ARM_DELAY_MS, NOTCH_PX } from "./holdSlider";
+import { FREE_NOTCHES, NOTCH_PX } from "./holdSlider";
 import { upVectorFor } from "./seatLayout";
 import { useHoldSlider } from "./useHoldSlider";
 import type { Rotation } from "./seatLayout";
@@ -28,14 +28,21 @@ const pointerAt = (x: number, y: number) =>
 const total = (onStep: { mock: { calls: unknown[][] } }) =>
   onStep.mock.calls.reduce((sum, [points]) => sum + (points as number), 0);
 
+/** Travel worth this many paying notches, the free one included. */
+const travelFor = (payingNotches: number) =>
+  payingNotches === 0
+    ? 0
+    : Math.sign(payingNotches) *
+      (Math.abs(payingNotches) + FREE_NOTCHES) *
+      NOTCH_PX;
+
 /**
- * A screen offset that reads as `notches` away from the player at this seat.
+ * A screen offset that reads as this far away from the player at this seat.
  * Taken from the seat own up vector so no test has to hard-code which way a
  * rotation points.
  */
-const awayBy = (rotation: Rotation, notches: number) => {
+const awayBy = (rotation: Rotation, px: number) => {
   const [ux, uy] = upVectorFor(rotation);
-  const px = notches * NOTCH_PX;
   return { x: px * ux, y: px * uy };
 };
 
@@ -47,22 +54,30 @@ function slider(
 ) {
   const rendered = renderHook(() => useHoldSlider(rotation, onStep, limit));
   const { result } = rendered;
+  const moveTo = (px: number) => {
+    const { x, y } = awayBy(rotation, px);
+    act(() => result.current.handlers.onPointerMove(pointerAt(x, y)));
+  };
   return {
     ...rendered,
     armed: () => result.current.armed,
     down: (x = 0, y = 0) =>
       act(() => result.current.handlers.onPointerDown(pointerAt(x, y))),
-    moveTo: (x: number, y: number) =>
-      act(() => result.current.handlers.onPointerMove(pointerAt(x, y))),
-    /** Slides to a point this many notches away from the player, absolutely. */
-    slideTo: (notches: number) => {
-      const { x, y } = awayBy(rotation, notches);
-      act(() => result.current.handlers.onPointerMove(pointerAt(x, y)));
+    /** Moves to a raw pixel distance away from the player. */
+    driftTo: moveTo,
+    /** Moves to wherever this many paying notches lives. */
+    slideTo: (payingNotches: number) => moveTo(travelFor(payingNotches)),
+    across: (px: number) => {
+      // Straight across the axis this seat counts along, which pays nothing.
+      const [ux, uy] = upVectorFor(rotation);
+      act(() =>
+        result.current.handlers.onPointerMove(pointerAt(px * -uy, px * ux)),
+      );
     },
     endWith: (end: "onPointerUp" | "onPointerCancel" | "onLostPointerCapture") =>
       act(() => result.current.handlers[end]()),
     up: () => act(() => result.current.handlers.onPointerUp()),
-    hold: (ms: number) => act(() => vi.advanceTimersByTime(ms)),
+    wait: (ms: number) => act(() => vi.advanceTimersByTime(ms)),
   };
 }
 
@@ -98,17 +113,6 @@ describe("a tap (HOLD-1)", () => {
     expect(onStep).toHaveBeenCalledWith(1);
   });
 
-  it("is still a tap a moment short of the second", () => {
-    const onStep = vi.fn();
-    const s = slider(onStep);
-
-    s.down();
-    s.hold(ARM_DELAY_MS - 1);
-    s.up();
-
-    expect(total(onStep)).toBe(1);
-  });
-
   it("starts a fresh count on the next press", () => {
     const onStep = vi.fn();
     const s = slider(onStep);
@@ -122,58 +126,101 @@ describe("a tap (HOLD-1)", () => {
   });
 });
 
-describe("arming (HOLD-2)", () => {
-  it("arms once the second is up, and counts nothing for the waiting", () => {
+describe("nothing here is timed (HOLD-2)", () => {
+  it("is still a tap however long the finger stays down", () => {
+    // The old rule armed a slider after a second and then counted on its own.
+    // A press that goes nowhere is now a tap and nothing else, and no amount
+    // of waiting changes that.
     const onStep = vi.fn();
     const s = slider(onStep);
 
     s.down();
+    s.wait(10_000);
+
     expect(s.armed()).toBe(false);
-
-    s.hold(ARM_DELAY_MS);
-
-    expect(s.armed()).toBe(true);
     expect(onStep).not.toHaveBeenCalled();
-  });
 
-  it("changes nothing when an armed press is released without sliding", () => {
-    // The point a tap would have been worth is not owed here: the press became
-    // a slider, and a slider that never moved has nothing to say.
-    const onStep = vi.fn();
-    const s = slider(onStep);
-
-    s.down();
-    s.hold(ARM_DELAY_MS + 4000);
     s.up();
 
-    expect(onStep).not.toHaveBeenCalled();
-    expect(s.armed()).toBe(false);
+    expect(total(onStep)).toBe(1);
   });
 
-  it("arms off the clock even when the timer never ran (HOLD-3)", () => {
-    // A throttled tab fires timeouts about a second late. The press is however
-    // long it really was, so the clock decides and the timer is only a cue.
+  it("schedules nothing at all while a press is held", () => {
+    const s = slider(vi.fn());
+
+    s.down();
+
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("slides on a quick flick, with no waiting first", () => {
     const onStep = vi.fn();
     const s = slider(onStep);
 
     s.down();
-    vi.setSystemTime(T0 + 1500);
-    s.moveTo(0, 0);
+    s.slideTo(3);
 
     expect(s.armed()).toBe(true);
+    expect(total(onStep)).toBe(15);
+  });
+});
 
+describe("the free notch (HOLD-8, HOLD-10)", () => {
+  it("counts nothing for a press that wanders inside it", () => {
+    const onStep = vi.fn();
+    const s = slider(onStep);
+
+    s.down();
+    for (let px = 1; px < 2 * NOTCH_PX; px++) s.driftTo(px);
+
+    expect(onStep).not.toHaveBeenCalled();
+    expect(s.armed()).toBe(false);
+  });
+
+  it("still pays the tap when a drifting press is lifted", () => {
+    // This is what the free notch is for. A thumb that rolls off the button on
+    // its way up used to be a tap and has to stay one.
+    const onStep = vi.fn();
+    const s = slider(onStep);
+
+    s.down();
+    s.driftTo(2 * NOTCH_PX - 1);
+    s.up();
+
+    expect(total(onStep)).toBe(1);
+  });
+
+  it("hands the press over to the slide the moment it is spent", () => {
+    const onStep = vi.fn();
+    const s = slider(onStep);
+
+    s.down();
+    s.driftTo(2 * NOTCH_PX);
+
+    expect(s.armed()).toBe(true);
+    expect(total(onStep)).toBe(5);
+  });
+
+  it("takes the tap away once the slide has it", () => {
+    // A press cannot be worth both. Once the slide has paid, lifting settles
+    // the slide and the tap is gone.
+    const onStep = vi.fn();
+    const s = slider(onStep);
+
+    s.down();
     s.slideTo(2);
+    s.up();
+
     expect(total(onStep)).toBe(10);
   });
 });
 
 describe("sliding (HOLD-8)", () => {
-  it("is worth five for every notch travelled", () => {
+  it("is worth five for every notch past the free one", () => {
     const onStep = vi.fn();
     const s = slider(onStep);
 
     s.down();
-    s.hold(ARM_DELAY_MS);
 
     s.slideTo(1);
     expect(total(onStep)).toBe(5);
@@ -185,23 +232,11 @@ describe("sliding (HOLD-8)", () => {
     expect(total(onStep)).toBe(30);
   });
 
-  it("counts nothing for a slide that has not cleared a notch", () => {
-    const onStep = vi.fn();
-    const s = slider(onStep);
-
-    s.down();
-    s.hold(ARM_DELAY_MS);
-    s.moveTo(0, -(NOTCH_PX - 1));
-
-    expect(onStep).not.toHaveBeenCalled();
-  });
-
   it("sends only what is still owed, never the running total again", () => {
     const onStep = vi.fn();
     const s = slider(onStep);
 
     s.down();
-    s.hold(ARM_DELAY_MS);
     s.slideTo(1);
     s.slideTo(2);
     s.slideTo(3);
@@ -216,11 +251,10 @@ describe("sliding (HOLD-8)", () => {
     const s = slider(onStep);
 
     s.down();
-    s.hold(ARM_DELAY_MS);
-    for (let px = 1; px <= 3 * NOTCH_PX; px++) s.moveTo(0, -px);
+    for (let px = 1; px <= 4 * NOTCH_PX; px++) s.driftTo(px);
 
     // The finger reports every pixel it crosses; only every thirty-second one
-    // is worth anything.
+    // past the free notch is worth anything.
     expect(onStep.mock.calls.every(([points]) => points !== 0)).toBe(true);
     expect(onStep).toHaveBeenCalledTimes(3);
   });
@@ -233,7 +267,6 @@ describe("sliding (HOLD-8)", () => {
       const s = slider(onStep);
 
       s.down();
-      s.hold(ARM_DELAY_MS);
       s.slideTo(notches);
 
       expect(total(onStep)).toBe(15);
@@ -247,7 +280,6 @@ describe("calling a slide off (HOLD-11)", () => {
     const s = slider(onStep);
 
     s.down();
-    s.hold(ARM_DELAY_MS);
     s.slideTo(3);
     expect(total(onStep)).toBe(15);
 
@@ -258,17 +290,30 @@ describe("calling a slide off (HOLD-11)", () => {
   });
 
   it("leaves the total untouched when it comes all the way back", () => {
-    // Sliding back to where the slider armed and lifting there is how you
-    // change your mind, and it has to cost nothing at all.
+    // Sliding back to where the finger landed and lifting there is how you
+    // change your mind, and it has to cost nothing at all — not even the tap
+    // the press started out as.
     const onStep = vi.fn();
     const s = slider(onStep);
 
     s.down();
-    s.hold(ARM_DELAY_MS);
     s.slideTo(4);
     s.slideTo(0);
     s.up();
 
+    expect(total(onStep)).toBe(0);
+  });
+
+  it("does not hand a cancelled slide back to the tap", () => {
+    const onStep = vi.fn();
+    const s = slider(onStep);
+
+    s.down();
+    s.slideTo(4);
+    s.driftTo(0);
+    s.up();
+
+    expect(onStep).not.toHaveBeenLastCalledWith(1);
     expect(total(onStep)).toBe(0);
   });
 });
@@ -279,7 +324,6 @@ describe("a slide with a floor under it (HOLD-13)", () => {
     const s = slider(onStep, 0, 5);
 
     s.down();
-    s.hold(ARM_DELAY_MS);
     s.slideTo(6);
 
     expect(total(onStep)).toBe(5);
@@ -293,7 +337,6 @@ describe("a slide with a floor under it (HOLD-13)", () => {
     const s = slider(onStep, 0, 5);
 
     s.down();
-    s.hold(ARM_DELAY_MS);
     s.slideTo(3);
     s.slideTo(1);
 
@@ -303,20 +346,24 @@ describe("a slide with a floor under it (HOLD-13)", () => {
     expect(total(onStep)).toBe(0);
   });
 
-  it("counts nothing at all when there is nothing to take", () => {
+  it("counts nothing but the tap when there is nothing to take", () => {
+    // With a limit of zero the slide can never be worth anything, so the press
+    // never stops being a tap.
     const onStep = vi.fn();
     const s = slider(onStep, 0, 0);
 
     s.down();
-    s.hold(ARM_DELAY_MS);
     s.slideTo(4);
     s.slideTo(1);
-    s.up();
 
     expect(onStep).not.toHaveBeenCalled();
+    expect(s.armed()).toBe(false);
+
+    s.up();
+    expect(total(onStep)).toBe(1);
   });
 
-  it("reads the limit as it stood when the slider armed", () => {
+  it("reads the limit as it stood when the finger landed", () => {
     // It falls as the slide spends it. A limit read live would shrink to zero
     // under the gesture and then refund everything it had just taken.
     const onStep = vi.fn();
@@ -324,13 +371,14 @@ describe("a slide with a floor under it (HOLD-13)", () => {
     const rendered = renderHook(() => useHoldSlider(0, onStep, limit));
 
     act(() => rendered.result.current.handlers.onPointerDown(pointerAt(0, 0)));
-    act(() => vi.advanceTimersByTime(ARM_DELAY_MS));
 
     limit = 0;
     rendered.rerender();
 
     act(() =>
-      rendered.result.current.handlers.onPointerMove(pointerAt(0, -3 * NOTCH_PX)),
+      rendered.result.current.handlers.onPointerMove(
+        pointerAt(0, -travelFor(3)),
+      ),
     );
 
     expect(total(onStep)).toBe(15);
@@ -338,19 +386,18 @@ describe("a slide with a floor under it (HOLD-13)", () => {
 });
 
 describe("which way is up (HOLD-10)", () => {
-  it("measures from where the finger was when it armed, not where it landed", () => {
-    // A thumb wanders through a second of holding. That wandering is not a
-    // slide, and counting it would start every hold part-way along.
+  it("measures from where the finger landed", () => {
     const onStep = vi.fn();
     const s = slider(onStep);
 
-    s.down(0, 0);
-    s.moveTo(0, -100);
-    s.hold(ARM_DELAY_MS);
-    expect(onStep).not.toHaveBeenCalled();
+    s.down(400, 400);
+    act(() =>
+      s.result.current.handlers.onPointerMove(
+        pointerAt(400, 400 - travelFor(2)),
+      ),
+    );
 
-    s.moveTo(0, -100 - NOTCH_PX);
-    expect(total(onStep)).toBe(5);
+    expect(total(onStep)).toBe(10);
   });
 
   it("discards drift across the axis", () => {
@@ -358,10 +405,10 @@ describe("which way is up (HOLD-10)", () => {
     const s = slider(onStep);
 
     s.down();
-    s.hold(ARM_DELAY_MS);
-    s.moveTo(200, 0);
+    s.across(400);
 
     expect(onStep).not.toHaveBeenCalled();
+    expect(s.armed()).toBe(false);
   });
 
   it("turns the slide with the seat", () => {
@@ -372,7 +419,6 @@ describe("which way is up (HOLD-10)", () => {
       const s = slider(onStep, rotation);
 
       s.down();
-      s.hold(ARM_DELAY_MS);
       s.slideTo(2);
 
       expect(total(onStep)).toBe(10);
@@ -386,7 +432,6 @@ describe("releasing (HOLD-4)", () => {
     const s = slider(onStep);
 
     s.down();
-    s.hold(ARM_DELAY_MS);
     s.slideTo(2);
     s.up();
     const settled = total(onStep);
@@ -404,7 +449,6 @@ describe("releasing (HOLD-4)", () => {
       const s = slider(onStep);
 
       s.down();
-      s.hold(ARM_DELAY_MS);
       s.slideTo(3);
       s.endWith(end);
 
@@ -414,6 +458,16 @@ describe("releasing (HOLD-4)", () => {
       expect(total(onStep)).toBe(15);
       s.unmount();
     }
+  });
+
+  it("pays the tap for a press cancelled before it slid", () => {
+    const onStep = vi.fn();
+    const s = slider(onStep);
+
+    s.down();
+    s.endWith("onPointerCancel");
+
+    expect(total(onStep)).toBe(1);
   });
 
   it("does nothing at all when there was no press", () => {
@@ -437,7 +491,7 @@ describe("lifecycle", () => {
 
     s.down();
     s.unmount();
-    act(() => vi.advanceTimersByTime(10 * ARM_DELAY_MS));
+    act(() => vi.advanceTimersByTime(10_000));
 
     expect(onStep).not.toHaveBeenCalled();
   });
@@ -454,8 +508,9 @@ describe("lifecycle", () => {
 
     act(() => result.current.handlers.onPointerDown(pointerAt(0, 0)));
     rerender({ onStep: second });
-    act(() => vi.advanceTimersByTime(ARM_DELAY_MS));
-    act(() => result.current.handlers.onPointerMove(pointerAt(0, -NOTCH_PX)));
+    act(() =>
+      result.current.handlers.onPointerMove(pointerAt(0, -travelFor(1))),
+    );
 
     expect(first).not.toHaveBeenCalled();
     expect(total(second)).toBe(5);
@@ -463,7 +518,7 @@ describe("lifecycle", () => {
 
   it("prevents the default on press and on the context menu", () => {
     // Without these a long press on a phone selects text or opens the callout
-    // menu, and the gesture is interrupted by the OS a moment before it arms.
+    // menu, and the gesture is interrupted by the OS.
     const { result } = renderHook(() => useHoldSlider(0, vi.fn()));
 
     const down = { ...pointerAt(0, 0), preventDefault: vi.fn() };
