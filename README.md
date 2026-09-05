@@ -12,6 +12,8 @@ Static Next.js app — no server, no accounts, no network calls at runtime.
   code and the spec disagree, one of them is a bug.
 - **[docs/WORKFLOW.md](docs/WORKFLOW.md)** — how to add or change behaviour
   here. Spec first, then the failing test, then the code.
+- **[docs/BRANCHING.md](docs/BRANCHING.md)** — the branch model and the rules
+  guarding `main`, which is what the host builds from.
 
 This README explains how the app is built; the spec says what it must do.
 

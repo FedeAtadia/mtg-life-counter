@@ -17,6 +17,9 @@ is the proof.
 5. **Check the build.** `npm run lint && npm run build`. The static export is
    the product.
 
+Where that work lives — which branch to cut, what has to pass before it can
+merge, and how a release reaches production — is [BRANCHING.md](BRANCHING.md).
+
 Changing existing behaviour is the same loop, starting from editing the
 requirement. Spec, test and code move in one commit — a requirement that no
 longer matches the code is worse than no requirement.
