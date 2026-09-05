@@ -48,7 +48,10 @@ export default function GameBoard() {
         />
       ))}
 
-      <CenterHub onClick={() => setSettingsOpen(true)} />
+      <CenterHub
+        onClick={() => setSettingsOpen(true)}
+        rotation={layout.hubRotation}
+      />
 
       {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
     </main>
