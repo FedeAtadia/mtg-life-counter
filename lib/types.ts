@@ -2,13 +2,20 @@ export type Format = "standard" | "commander";
 
 export type PlayerId = string;
 
+/** The five colours of mana, in the order Magic always lists them. */
+export type ManaColor = "w" | "u" | "b" | "r" | "g";
+
 export interface Player {
   id: PlayerId;
   /** User-entered name. Blank means "fall back to the default" — see displayName(). */
   name: string;
   life: number;
-  /** Index into ACCENTS. */
-  accent: number;
+  /**
+   * The player's commander colour identity, in WUBRG order. An empty list is
+   * colourless, which is a real identity — Eldrazi and artifact commanders —
+   * not a missing value.
+   */
+  colors: ManaColor[];
   /** Damage received, keyed by the id of the player whose commander dealt it. */
   commanderDamage: Record<PlayerId, number>;
 }
@@ -26,7 +33,7 @@ export interface TimerState {
 }
 
 export interface GameState {
-  version: 2;
+  version: 3;
   format: Format;
   /** Length 2..6. Array order is seat order. */
   players: Player[];
@@ -53,4 +60,5 @@ export type Action =
       sourceId: PlayerId;
       delta: number;
     }
-  | { type: "RENAME_PLAYER"; id: PlayerId; name: string };
+  | { type: "RENAME_PLAYER"; id: PlayerId; name: string }
+  | { type: "SET_PLAYER_COLORS"; id: PlayerId; colors: ManaColor[] };

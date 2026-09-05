@@ -317,13 +317,64 @@ describe("parseGameState", () => {
 
     const parsed = parseGameState(v1);
 
-    expect(parsed?.version).toBe(2);
+    expect(parsed?.version).toBe(3);
     expect(parsed?.players[0].life).toBe(27);
     expect(parsed?.players[0].name).toBe("Fede");
     expect(parsed?.players[0].commanderDamage.p2).toBe(13);
     // No way to know when that game started, so it shows 0:00 rather than a
     // fabricated elapsed time.
     expect(parsed?.timer).toEqual({ startedAt: null, elapsedMs: 0 });
+  });
+
+  it("turns an old accent index into a colour identity", () => {
+    // v1 and v2 stored an accent index. Mapping it onto the matching mana
+    // colour keeps a game in progress looking roughly as it did, instead of
+    // resetting the whole table to one colour.
+    const parsed = parseGameState({
+      version: 2,
+      format: "commander",
+      players: [
+        { id: "p1", name: "", life: 40, accent: 0, commanderDamage: {} },
+        { id: "p2", name: "", life: 40, accent: 3, commanderDamage: {} },
+      ],
+      timer: { startedAt: null, elapsedMs: 0 },
+    });
+
+    expect(parsed?.version).toBe(3);
+    expect(parsed?.players[0].colors).toEqual(["w"]);
+    expect(parsed?.players[1].colors).toEqual(["r"]);
+  });
+
+  it("keeps a saved identity, in WUBRG order however it was stored", () => {
+    const parsed = parseGameState({
+      version: 3,
+      format: "commander",
+      players: [
+        { id: "p1", name: "", life: 40, colors: ["g", "u", "r"], commanderDamage: {} },
+        { id: "p2", name: "", life: 40, colors: [], commanderDamage: {} },
+      ],
+      timer: { startedAt: null, elapsedMs: 0 },
+    });
+
+    expect(parsed?.players[0].colors).toEqual(["u", "r", "g"]);
+    // Colourless is a real identity, not a missing value.
+    expect(parsed?.players[1].colors).toEqual([]);
+  });
+
+  it("drops nonsense colours rather than the game", () => {
+    const parsed = parseGameState({
+      version: 3,
+      format: "commander",
+      players: [
+        { id: "p1", name: "", life: 40, colors: ["u", "purple", 7], commanderDamage: {} },
+        { id: "p2", name: "", life: 40, colors: "blue", commanderDamage: {} },
+      ],
+      timer: { startedAt: null, elapsedMs: 0 },
+    });
+
+    expect(parsed?.players[0].colors).toEqual(["u"]);
+    // Not an array at all, and no accent to fall back on: seat default.
+    expect(parsed?.players[1].colors).toEqual(["u"]);
   });
 
   it("repairs a corrupt timer instead of dropping the game", () => {

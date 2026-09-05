@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ManaPip from "./ManaPip";
 import {
-  ACCENTS,
+  MANA,
+  MANA_COLORS,
+  describeIdentity,
+  identityOf,
+} from "@/lib/identity";
+import { MUSIC_LINKS } from "@/lib/music";
+import {
   MAX_NAME_LENGTH,
   MAX_PLAYERS,
   MIN_PLAYERS,
@@ -160,43 +167,102 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
           </StepperButton>
         </div>
 
-        <ul className="mb-5 flex flex-col gap-2">
-          {state.players.map((player) => (
-            <li key={player.id} className="flex items-center gap-2">
-              <span
-                className="h-3 w-3 shrink-0 rounded-full"
-                style={{
-                  backgroundColor: ACCENTS[player.accent % ACCENTS.length].hex,
-                }}
-              />
-              <input
-                value={player.name}
-                onChange={(event) =>
-                  dispatch({
-                    type: "RENAME_PLAYER",
-                    id: player.id,
-                    name: event.target.value,
-                  })
-                }
-                placeholder={defaultNameFor(player.id)}
-                maxLength={MAX_NAME_LENGTH}
-                aria-label={`Name for ${defaultNameFor(player.id)}`}
-                className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm outline-none focus:border-white/40"
-              />
-              <button
-                type="button"
-                aria-label={`Remove ${defaultNameFor(player.id)}`}
-                disabled={playerCount <= MIN_PLAYERS}
-                onClick={() =>
-                  dispatch({ type: "REMOVE_PLAYER", id: player.id })
-                }
-                className="shrink-0 rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-white/60 active:bg-white/10 disabled:opacity-30"
+        <ul className="mb-5 flex flex-col gap-3">
+          {state.players.map((player) => {
+            const colors = identityOf(player);
+            return (
+              <li
+                key={player.id}
+                className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2.5"
               >
-                &times;
-              </button>
-            </li>
-          ))}
+                <div className="flex items-center gap-2">
+                  <input
+                    value={player.name}
+                    onChange={(event) =>
+                      dispatch({
+                        type: "RENAME_PLAYER",
+                        id: player.id,
+                        name: event.target.value,
+                      })
+                    }
+                    placeholder={defaultNameFor(player.id)}
+                    maxLength={MAX_NAME_LENGTH}
+                    aria-label={`Name for ${defaultNameFor(player.id)}`}
+                    className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm outline-none focus:border-white/40"
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Remove ${defaultNameFor(player.id)}`}
+                    disabled={playerCount <= MIN_PLAYERS}
+                    onClick={() =>
+                      dispatch({ type: "REMOVE_PLAYER", id: player.id })
+                    }
+                    className="shrink-0 rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-white/60 active:bg-white/10 disabled:opacity-30"
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                {/* Commander colour identity. No selection is colourless, which
+                    is a real identity rather than an unfinished one. */}
+                <div
+                  className="flex items-center gap-1.5"
+                  role="group"
+                  aria-label={`Commander colours for ${defaultNameFor(player.id)}`}
+                >
+                  {MANA_COLORS.map((color) => {
+                    const on = colors.includes(color);
+                    return (
+                      <button
+                        key={color}
+                        type="button"
+                        aria-pressed={on}
+                        aria-label={MANA[color].label}
+                        onClick={() =>
+                          dispatch({
+                            type: "SET_PLAYER_COLORS",
+                            id: player.id,
+                            colors: on
+                              ? colors.filter((c) => c !== color)
+                              : [...colors, color],
+                          })
+                        }
+                        className="grid h-9 w-9 place-items-center rounded-full border-2 transition-opacity"
+                        style={{
+                          borderColor: on ? MANA[color].hex : "var(--border)",
+                          opacity: on ? 1 : 0.35,
+                        }}
+                      >
+                        <ManaPip color={color} size="22px" />
+                      </button>
+                    );
+                  })}
+                  <span className="ml-1 text-xs text-[var(--muted)]">
+                    {describeIdentity(colors)}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
         </ul>
+
+        <SectionLabel>Music</SectionLabel>
+        <p className="mb-2 text-xs leading-snug text-[var(--muted)]">
+          Opens your music app, which keeps playing while you count.
+        </p>
+        <div className="mb-5 grid grid-cols-2 gap-2">
+          {MUSIC_LINKS.map((link) => (
+            <a
+              key={link.label}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-3 text-center text-sm font-medium text-white/80 active:bg-white/10"
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
 
         <button
           type="button"

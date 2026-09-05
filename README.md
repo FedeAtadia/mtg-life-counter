@@ -55,6 +55,23 @@ authored with its width and height swapped. `PlayerSeat` does that purely in CSS
 with `container-type: size` and `100cqh` / `100cqw` — no measuring, no resize
 observers. Font sizes are container-query units too, so every panel scales itself.
 
+### Colour identity
+
+Each player carries their commander's colour identity, and the frame follows it
+(`lib/identity.ts`):
+
+- **Three or more colours turn the trim gold**, exactly as a real multicolour
+  card does. Blending three hues into one border only makes mud.
+- **The art box always keeps the real colours**, as a gradient. This is the point
+  of splitting trim from wash: if gold applied to the whole panel, a pod of
+  three-colour commanders would be six identical gold panels and nobody could
+  pick out their own seat at a glance.
+- **No colours is colourless**, a real identity with a silver frame and a diamond
+  pip — not a missing value.
+
+Pips are hand-drawn inline SVG in `components/ManaPip.tsx`: no icon font, no
+network request, crisp at every panel size, and no Wizards artwork.
+
 ### Rules
 
 All game rules live in one pure reducer, `lib/gameReducer.ts`, which is what the
@@ -81,6 +98,16 @@ under `mtg-life-counter:v1` on a 250 ms debounce. Storage is read in an effect
 after mount, never during render, so the prerendered HTML and the first client
 render always agree; anything read back goes through `parseGameState` in
 `lib/storage.ts`, which rejects junk and repairs damage maps.
+
+### Music
+
+The settings sheet links out to YouTube or Spotify rather than playing anything
+in the page (`lib/music.ts`). On a phone those links open the native app, which
+owns background audio properly, so the music survives the counter staying on
+screen and the phone locking. A player embedded in the page can do neither:
+browsers suspend audio in a backgrounded tab, and using a hidden YouTube player
+as a music source is against its terms of service. The links ship as searches,
+not playlist ids — paste a real playlist URL over either one.
 
 ## Not in this version
 

@@ -1,7 +1,8 @@
 import { syncDamageMaps } from "./gameReducer";
+import { MANA_COLORS, defaultColorsForSeat, normalizeColors } from "./identity";
 import { MAX_NAME_LENGTH, MAX_PLAYERS, MIN_PLAYERS } from "./rules";
 import { STOPPED_TIMER } from "./timer";
-import type { GameState, Player, TimerState } from "./types";
+import type { GameState, ManaColor, Player, TimerState } from "./types";
 
 const STORAGE_KEY = "mtg-life-counter:v1";
 
@@ -9,9 +10,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function parsePlayer(value: unknown): Player | null {
+/**
+ * Colour identity, from a v3 save or migrated from an older one.
+ *
+ * Saves before v3 stored an accent index instead. Mapping it onto a single
+ * mana colour keeps a game in progress looking roughly as it did, rather than
+ * resetting everyone to the same colour.
+ */
+function parseColors(value: unknown, accent: unknown, seatIndex: number) {
+  if (Array.isArray(value)) {
+    return normalizeColors(
+      value.filter((c): c is ManaColor =>
+        MANA_COLORS.includes(c as ManaColor),
+      ),
+    );
+  }
+  if (typeof accent === "number" && Number.isFinite(accent)) {
+    return defaultColorsForSeat(Math.max(0, Math.round(accent)));
+  }
+  return defaultColorsForSeat(seatIndex);
+}
+
+function parsePlayer(value: unknown, seatIndex: number): Player | null {
   if (!isRecord(value)) return null;
-  const { id, name, life, accent, commanderDamage } = value;
+  const { id, name, life, accent, colors, commanderDamage } = value;
   if (typeof id !== "string" || id.length === 0) return null;
   if (typeof life !== "number" || !Number.isFinite(life)) return null;
 
@@ -28,7 +50,7 @@ function parsePlayer(value: unknown): Player | null {
     id,
     name: typeof name === "string" ? name.slice(0, MAX_NAME_LENGTH) : "",
     life: Math.round(life),
-    accent: typeof accent === "number" && Number.isFinite(accent) ? accent : 0,
+    colors: parseColors(colors, accent, seatIndex),
     commanderDamage: damage,
   };
 }
@@ -61,13 +83,15 @@ function parseTimer(value: unknown): TimerState {
  */
 export function parseGameState(value: unknown): GameState | null {
   if (!isRecord(value)) return null;
-  if (value.version !== 1 && value.version !== 2) return null;
+  if (value.version !== 1 && value.version !== 2 && value.version !== 3) {
+    return null;
+  }
   if (value.format !== "standard" && value.format !== "commander") return null;
   if (!Array.isArray(value.players)) return null;
 
   const players: Player[] = [];
-  for (const raw of value.players) {
-    const player = parsePlayer(raw);
+  for (const [seatIndex, raw] of value.players.entries()) {
+    const player = parsePlayer(raw, seatIndex);
     if (!player) return null;
     if (players.some((p) => p.id === player.id)) return null;
     players.push(player);
@@ -75,7 +99,7 @@ export function parseGameState(value: unknown): GameState | null {
   if (players.length < MIN_PLAYERS || players.length > MAX_PLAYERS) return null;
 
   return {
-    version: 2,
+    version: 3,
     format: value.format,
     // Drops damage entries for departed players and fills in missing ones.
     players: syncDamageMaps(players),

@@ -11,25 +11,12 @@ export const LETHAL_COMMANDER_DAMAGE = 21;
 
 export const MAX_NAME_LENGTH = 16;
 
-export const ACCENTS = [
-  { name: "White", hex: "#d8d0b4" },
-  { name: "Blue", hex: "#2f7fc4" },
-  { name: "Black", hex: "#7a7a8c" },
-  { name: "Red", hex: "#c9432c" },
-  { name: "Green", hex: "#3d8f5c" },
-  { name: "Gold", hex: "#c9a227" },
-] as const;
-
 export function startingLifeFor(format: Format): number {
   return format === "commander" ? 40 : 20;
 }
 
 export function formatLabel(format: Format): string {
   return format === "commander" ? "Commander" : "Standard";
-}
-
-export function accentFor(player: Player): string {
-  return ACCENTS[player.accent % ACCENTS.length].hex;
 }
 
 export function defaultNameFor(id: PlayerId): string {
