@@ -4,6 +4,7 @@ import { createGame } from "@/lib/gameReducer";
 import { MAX_NAME_LENGTH } from "@/lib/rules";
 import { startedTimerAt } from "@/lib/timer";
 import { hub, lifeOn, openSettings, panelFor, renderBoard } from "../test/harness";
+import { removeServiceWorker, stubServiceWorker } from "../test/serviceWorker";
 import { removeWakeLock, stubWakeLock } from "../test/wakeLock";
 
 const T0 = 1_700_000_000_000;
@@ -426,6 +427,54 @@ describe("the screen going dark", () => {
 
     expect(
       within(sheet).getByText(/would not keep the screen lit/),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("playing with no signal (PWA-10)", () => {
+  afterEach(() => {
+    removeServiceWorker();
+    removeWakeLock();
+    vi.unstubAllEnvs();
+  });
+
+  /** Opens settings on a board that has had its answer from the browser. */
+  async function noteInSettings() {
+    renderBoard();
+    // Registration is asked for in a mount effect, and answered by a promise.
+    await act(async () => {});
+    return openSettings();
+  }
+
+  it("says when the app has been saved for offline play", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    stubServiceWorker();
+
+    const sheet = await noteInSettings();
+
+    expect(within(sheet).getByText(/Saved for offline play/)).toBeInTheDocument();
+  });
+
+  it("says when the browser cannot do it at all", async () => {
+    // No stub: a browser with no service worker support. A board that will not
+    // open on the underground should explain itself rather than look broken.
+    vi.stubEnv("NODE_ENV", "production");
+
+    const sheet = await noteInSettings();
+
+    expect(
+      within(sheet).getByText(/Offline play is not available/),
+    ).toBeInTheDocument();
+  });
+
+  it("says when the browser refused", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    stubServiceWorker(() => Promise.reject(new Error("SecurityError")));
+
+    const sheet = await noteInSettings();
+
+    expect(
+      within(sheet).getByText(/could not be saved for offline play/),
     ).toBeInTheDocument();
   });
 });
