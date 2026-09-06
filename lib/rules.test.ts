@@ -5,6 +5,7 @@ import {
   MAX_PLAYERS,
   MIN_PLAYERS,
   clamp,
+  damageReadoutMode,
   defaultNameFor,
   displayName,
   eliminationReason,
@@ -156,5 +157,29 @@ describe("limits", () => {
     expect(MAX_PLAYERS).toBe(6);
     expect(MAX_NAME_LENGTH).toBe(16);
     expect(LETHAL_COMMANDER_DAMAGE).toBe(21);
+  });
+});
+
+describe("damageReadoutMode (CMDR-14)", () => {
+  it("gives every opponent a named line while there are three or fewer", () => {
+    // Three opponents is a four-player board, which is the busiest table where
+    // a name still fits beside a life total.
+    for (const opponents of [1, 2, 3]) {
+      expect(damageReadoutMode(opponents)).toBe("rows");
+    }
+  });
+
+  it("drops the names at four opponents", () => {
+    // Four lines do not fit. Rows would have to shrink past legible, and the
+    // life total shrinks with them, so the names go instead of the numbers.
+    for (const opponents of [4, 5]) {
+      expect(damageReadoutMode(opponents)).toBe("tiles");
+    }
+  });
+
+  it("still answers for a table with nobody else at it", () => {
+    // Unreachable from two players up, but a readout that threw here would be
+    // a crash rather than an empty box.
+    expect(damageReadoutMode(0)).toBe("rows");
   });
 });

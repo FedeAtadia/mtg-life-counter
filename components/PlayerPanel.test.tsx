@@ -5,6 +5,8 @@ import { NOTCH_POINTS } from "@/lib/holdSlider";
 import { LETHAL_COMMANDER_DAMAGE } from "@/lib/rules";
 import type { Action, GameState } from "@/lib/types";
 import {
+  damageEntryOn,
+  damageShownOn,
   deltaChipOn,
   drift,
   hintOn,
@@ -14,6 +16,8 @@ import {
   minusZone,
   panelFor,
   plusZone,
+  readoutModeOn,
+  readoutOn,
   FREE_PX,
   NOTCH_PX,
   pressAndSlide,
@@ -62,7 +66,9 @@ describe("what a seat shows", () => {
       }),
     );
 
-    expect(screen.getByText("Fede")).toBeInTheDocument();
+    // Scoped to their own card: every opponent's readout now carries the name
+    // too (CMDR-13), so a bare search would find it in more than one place.
+    expect(within(panelFor("Fede")).getByText("Fede")).toBeInTheDocument();
     expect(screen.queryByText("Player 1")).not.toBeInTheDocument();
   });
 
@@ -78,9 +84,13 @@ describe("what a seat shows", () => {
     // Counted in the DOM because the pips are aria-hidden: they are decoration,
     // and the identity is read out in words in the settings sheet instead.
     // Colourless is a real identity, so that seat still gets a pip rather than
-    // an empty gap where the others have theirs.
-    expect(panelFor("Player 1").querySelectorAll("svg")).toHaveLength(3);
-    expect(panelFor("Player 2").querySelectorAll("svg")).toHaveLength(1);
+    // an empty gap where the others have theirs. Scoped to the title bar,
+    // because the damage readout draws pips of its own (CMDR-13).
+    const identityPips = (name: string) =>
+      panelFor(name).querySelectorAll("[data-identity-pips] svg");
+
+    expect(identityPips("Player 1")).toHaveLength(3);
+    expect(identityPips("Player 2")).toHaveLength(1);
   });
 });
 
@@ -383,5 +393,89 @@ describe("the commander damage button", () => {
         "Player 1: commander damage",
       ),
     ).toBeNull();
+  });
+});
+
+describe("the commander damage readout (CMDR-13)", () => {
+  it("shows what every opponent has landed without opening anything", () => {
+    renderBoard(
+      build(
+        createGame("commander", 4),
+        { type: "ADJUST_COMMANDER_DAMAGE", targetId: "p1", sourceId: "p2", delta: 7 },
+        { type: "ADJUST_COMMANDER_DAMAGE", targetId: "p1", sourceId: "p4", delta: 3 },
+      ),
+    );
+    const panel = panelFor("Player 1");
+
+    expect(damageShownOn(panel, "p2")).toBe(7);
+    expect(damageShownOn(panel, "p3")).toBe(0);
+    expect(damageShownOn(panel, "p4")).toBe(3);
+  });
+
+  it("holds no counter for the player whose card it is (CMDR-1)", () => {
+    renderBoard(createGame("commander", 4));
+
+    expect(readoutOn(panelFor("Player 1"))).not.toBeNull();
+    expect(
+      panelFor("Player 1").querySelector('[data-damage-from="p1"]'),
+    ).toBeNull();
+  });
+
+  it("follows the damage as it is entered, with nothing reopened", () => {
+    // The whole point of the readout: the table is legible between turns
+    // without anybody opening a panel to check it.
+    renderBoard(createGame("commander", 4));
+    const panel = panelFor("Player 1");
+    expect(damageShownOn(panel, "p2")).toBe(0);
+
+    fireEvent.click(
+      within(panel).getByLabelText("Player 1: commander damage"),
+    );
+    tapTimes(screen.getByLabelText("Add commander damage from Player 2"), 4);
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    expect(damageShownOn(panel, "p2")).toBe(4);
+  });
+
+  it("names each opponent while there are three of them (CMDR-14)", () => {
+    renderBoard(createGame("commander", 4));
+    const panel = panelFor("Player 1");
+
+    expect(readoutModeOn(panel)).toBe("rows");
+    expect(damageEntryOn(panel, "p2")).toHaveTextContent("Player 2");
+  });
+
+  it("drops the names at four opponents, keeping the numbers (CMDR-14)", () => {
+    // Five seats on one phone: the names are what has to go, because a
+    // commander damage counter nobody can read is not a counter.
+    renderBoard(createGame("commander", 5));
+    const panel = panelFor("Player 1");
+
+    expect(readoutModeOn(panel)).toBe("tiles");
+    expect(damageEntryOn(panel, "p2")).not.toHaveTextContent("Player 2");
+    expect(damageShownOn(panel, "p2")).toBe(0);
+  });
+
+  it("marks the counter that is lethal, not just the seat (CMDR-15)", () => {
+    renderBoard(
+      build(createGame("commander", 4), {
+        type: "ADJUST_COMMANDER_DAMAGE",
+        targetId: "p1",
+        sourceId: "p3",
+        delta: LETHAL_COMMANDER_DAMAGE,
+      }),
+    );
+    const panel = panelFor("Player 1");
+
+    expect(damageEntryOn(panel, "p3")).toHaveAttribute("data-lethal", "true");
+    // The other two are untouched: damage is never pooled across commanders.
+    expect(damageEntryOn(panel, "p2")).toHaveAttribute("data-lethal", "false");
+    expect(damageEntryOn(panel, "p4")).toHaveAttribute("data-lethal", "false");
+  });
+
+  it("goes away in Standard, where commander damage is not a thing (CMDR-16)", () => {
+    renderBoard(createGame("standard", 4));
+
+    expect(readoutOn(panelFor("Player 1"))).toBeNull();
   });
 });

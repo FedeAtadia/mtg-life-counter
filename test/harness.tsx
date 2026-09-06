@@ -77,6 +77,38 @@ export function deltaChipOn(panel: HTMLElement): HTMLElement {
   return chip as HTMLElement;
 }
 
+/**
+ * The commander damage readout on a card, or null where there is none — which
+ * is every card in Standard (CMDR-16).
+ */
+export function readoutOn(panel: HTMLElement): HTMLElement | null {
+  return panel.querySelector("[data-damage-readout]");
+}
+
+/** Which way the readout is drawn: a named line each, or pips and values. */
+export function readoutModeOn(panel: HTMLElement): string | null {
+  return readoutOn(panel)?.getAttribute("data-damage-readout") ?? null;
+}
+
+/** One opponent's entry in the readout, found by the id of their commander. */
+export function damageEntryOn(
+  panel: HTMLElement,
+  sourceId: string,
+): HTMLElement {
+  const entry = panel.querySelector(`[data-damage-from="${sourceId}"]`);
+  if (!entry) throw new Error(`no readout entry for ${sourceId} on this panel`);
+  return entry as HTMLElement;
+}
+
+/** What the readout says one opponent's commander has landed. */
+export function damageShownOn(panel: HTMLElement, sourceId: string): number {
+  const value = damageEntryOn(panel, sourceId).querySelector(
+    "[data-damage-value]",
+  );
+  if (!value) throw new Error(`no value on the ${sourceId} entry`);
+  return Number(value.textContent);
+}
+
 /** The "−" or "+" beside a total, which lights up when the slider arms. */
 export function hintOn(panel: HTMLElement, sign: "minus" | "plus"): HTMLElement {
   const hint = panel.querySelector(`[data-hint="${sign}"]`);
