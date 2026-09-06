@@ -76,6 +76,15 @@ body {
   animation: board-in 200ms ease-out both;
 }
 
+/* The hub's band closing up when a game starts (SEAT-9) is a snap, on purpose.
+   A `transition` on grid-template-rows was tried and taken out again: the track
+   size comes from a custom property, and with a transition declared the
+   template resolves the property one change late — set it to 2.25rem and the
+   grid stays on 2.75rem until something else moves. Registering the property
+   with `@property` fixes the staleness but still does not interpolate a grid
+   track, so the transition bought a bug and no animation. Eight pixels
+   appearing at once is not worth getting that wrong. */
+
 @media (prefers-reduced-motion: reduce) {
   .board-in {
     animation-duration: 1ms;

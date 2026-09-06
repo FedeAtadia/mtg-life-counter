@@ -230,6 +230,10 @@ Covered by `lib/gameReducer.test.ts`, `lib/rules.test.ts`,
   ever drawn over a card. Seats and hub together tile the board exactly once.
 - **SEAT-8** That track is a fixed size rather than a share of the board, so a
   larger screen gives its extra room to the seats and not to the gap.
+- **SEAT-9** It is only as deep as what it is holding: enough for the Start
+  button and the clock side by side before a game begins, and enough for the
+  clock alone once one is under way (TIMER-7). The room Start needed goes back
+  to the seats the moment it is no longer needed, which is most of a game.
 
 ## TIMER — The game clock
 
@@ -258,10 +262,11 @@ Covered by `lib/timer.test.ts`, `lib/useElapsed.test.ts`,
 - **TIMER-8** The one timer control in settings reads Start before the clock
   has ever run, Pause while it is running, and Resume once there is time
   banked.
-- **TIMER-9** The clock keeps the exact centre of the board whether or not the
+- **TIMER-9** The clock keeps the centre of the hub's track whether or not the
   Start button is beside it. Start is there for the first few seconds of a
-  game; the clock is there for all of it, and the thing that stays should not
-  be moved by the thing that goes.
+  game; the clock is there for all of it, and the thing that stays is never
+  displaced along the band by the thing that goes. The band itself closing up
+  around it (SEAT-9) is the intended effect, not an exception to this.
 
 ## SAVE — Persistence
 

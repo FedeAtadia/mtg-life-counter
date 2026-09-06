@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { MAX_PLAYERS, MIN_PLAYERS } from "./rules";
-import { HUB_TRACK, SEAT_LAYOUTS, layoutFor, upVectorFor } from "./seatLayout";
+import {
+  HUB_TRACK,
+  HUB_TRACK_RUNNING,
+  HUB_TRACK_VAR,
+  SEAT_LAYOUTS,
+  layoutFor,
+  upVectorFor,
+} from "./seatLayout";
 import type { Rotation } from "./seatLayout";
 
 const counts = Array.from(
@@ -106,15 +113,32 @@ describe("seat layouts", () => {
       }
     });
 
-    it("is a fixed size rather than a share of the board (SEAT-8)", () => {
-      // A `fr` track would grow the gap on a bigger screen. The seats should
-      // get that room instead.
+    it("is the only track that is not a share of the board (SEAT-8)", () => {
+      // A `fr` track would grow the gap on a bigger screen; the seats should
+      // get that room instead. The depth itself is a custom property, because
+      // it has two values (SEAT-9) and the board picks between them.
       for (const count of counts) {
         const layout = SEAT_LAYOUTS[count];
         const template =
           layout.hubRotation === 0 ? layout.rows : layout.cols;
-        expect(template).toContain(HUB_TRACK);
+        expect(template).toContain(HUB_TRACK_VAR);
+        // Every other track on that axis is a share.
+        const others = template.split(" ").filter((t) => t !== HUB_TRACK_VAR);
+        for (const track of others) {
+          expect(track).toMatch(/fr$/);
+        }
       }
+    });
+
+    it("has one depth for the Start button and a smaller one without it (SEAT-9)", () => {
+      // Both absolute, so neither grows with the screen, and the running one
+      // genuinely smaller — otherwise the space Start needed is never given
+      // back and SEAT-9 buys nothing.
+      const rem = (v: string) => Number.parseFloat(v);
+      for (const value of [HUB_TRACK, HUB_TRACK_RUNNING]) {
+        expect(value).toMatch(/rem$/);
+      }
+      expect(rem(HUB_TRACK_RUNNING)).toBeLessThan(rem(HUB_TRACK));
     });
   });
 

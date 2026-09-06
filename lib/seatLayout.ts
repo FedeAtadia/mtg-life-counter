@@ -23,11 +23,19 @@ export interface Seat {
 }
 
 /**
- * How much of the board the hub's own track takes (SEAT-7).
+ * How much of the board the hub's own track takes (SEAT-7), in its two depths.
  *
- * Enough for the settings pill and the Start button beside it, and not a pixel
- * more: every one of these is taken off a card. Fixed rather than a share
- * (SEAT-8), so a larger screen spends its extra room on the seats.
+ * Enough for what it is actually holding and not a pixel more, because every
+ * one of these is taken off a card (SEAT-9): the taller figure clears the Start
+ * button, the shorter one only has the clock to clear once a game is under way.
+ * Both are fixed rather than a share (SEAT-8), so a larger screen spends its
+ * extra room on the seats.
+ *
+ * The templates below name a custom property rather than either value, so the
+ * layouts stay one static description of the board and the choice between the
+ * two lives with the state that decides it. Do not put a `transition` on the
+ * grid template that reads it — see the note in `app/globals.css`, which is
+ * where that was tried and undone.
  *
  * Which direction it costs depends on the seats either side of it, and the
  * answer is better than it sounds. At four players the seats are turned a
@@ -37,6 +45,10 @@ export interface Seat {
  * seats, that it comes out of the height and the totals actually shrink.
  */
 export const HUB_TRACK = "2.75rem";
+export const HUB_TRACK_RUNNING = "2.25rem";
+
+/** What the grid templates name; GameBoard sets it to one of the two above. */
+export const HUB_TRACK_VAR = "var(--hub-track)";
 
 export interface BoardLayout {
   /** Raw grid-template-rows / grid-template-columns values. */
@@ -61,7 +73,7 @@ export interface BoardLayout {
 export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
   // Two players facing each other across the device.
   2: {
-    rows: `1fr ${HUB_TRACK} 1fr`,
+    rows: `1fr ${HUB_TRACK_VAR} 1fr`,
     cols: "1fr",
     hubRotation: 0,
     hubArea: "2 / 1 / 3 / 2",
@@ -73,7 +85,7 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
 
   // Near edge plus one on each side.
   3: {
-    rows: `1.25fr ${HUB_TRACK} 1fr`,
+    rows: `1.25fr ${HUB_TRACK_VAR} 1fr`,
     cols: "1fr 1fr",
     hubRotation: 0,
     hubArea: "2 / 1 / 3 / 3",
@@ -86,7 +98,7 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
 
   // Two per side, one to each corner.
   4: {
-    rows: `1fr ${HUB_TRACK} 1fr`,
+    rows: `1fr ${HUB_TRACK_VAR} 1fr`,
     cols: "1fr 1fr",
     // The band runs between the two rows of seats, clear of every name.
     hubRotation: 0,
@@ -103,7 +115,7 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
   // divide the same height into three and into two, with nothing left over.
   5: {
     rows: "repeat(6, 1fr)",
-    cols: `1fr ${HUB_TRACK} 1fr`,
+    cols: `1fr ${HUB_TRACK_VAR} 1fr`,
     // Middle seats sit either side of the centre with their names on the seam,
     // so the band runs down between the two columns rather than across them.
     hubRotation: 90,
@@ -120,7 +132,7 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
   // Three down each side.
   6: {
     rows: "1fr 1fr 1fr",
-    cols: `1fr ${HUB_TRACK} 1fr`,
+    cols: `1fr ${HUB_TRACK_VAR} 1fr`,
     // Middle seats sit either side of the centre with their names on the seam.
     hubRotation: 90,
     hubArea: "1 / 2 / 4 / 3",
