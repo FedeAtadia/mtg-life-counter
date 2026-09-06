@@ -6,19 +6,31 @@ import { useGame } from "@/lib/useGame";
 import type { Rotation } from "@/lib/seatLayout";
 
 /**
- * How far the Start button sits from the hub, along the hub's own up axis: far
- * enough that neither pill is under a thumb aimed at the other, and no further,
- * because everything past the centre seam is somebody's panel.
+ * How far the Start button sits from the clock, along the hub track.
+ *
+ * Along it, never across it: the track is only deep enough for one pill, and
+ * anything pushed across it is back over somebody's card, which is the whole
+ * thing this track exists to stop (SEAT-7). Because the offset is applied in
+ * the hub's own frame, one value serves both — it reads as sideways where the
+ * band lies across the board and as above where it runs down it.
+ *
+ * Half the clock plus half the button plus a thumb's width between them.
  */
-const START_OFFSET = "-2.9rem";
+const START_OFFSET = "-6rem";
 
 /**
- * Settings entry point and game clock, parked on the seam between panels at
- * dead centre — the one spot that isn't inside anybody's rotated panel — with
- * the Start button above it until the game is under way (TIMER-7).
+ * Settings entry point and game clock, in a band of the board's own between the
+ * seats (SEAT-7), with the Start button beside it until the game is under way
+ * (TIMER-7).
  *
- * The two are separate elements rather than a stacked pair inside one box, so
- * that the hub does not jump to a new spot the moment Start goes away.
+ * It used to float over the seam on top of whatever was underneath, which on a
+ * card with a text box means sitting on somebody's damage. Now the band is a
+ * real grid track and nothing overlaps.
+ *
+ * Both controls are laid in the same grid cell and moved by transform alone, so
+ * the clock keeps the exact centre whether or not Start is there (TIMER-9): the
+ * control that is present all game is not shifted by the one that leaves after
+ * a few seconds.
  *
  * The tick lives here rather than in GameBoard so that a second passing
  * re-renders this pill alone, not all six player panels.
@@ -26,9 +38,11 @@ const START_OFFSET = "-2.9rem";
 export default function CenterHub({
   onClick,
   rotation,
+  gridArea,
 }: {
   onClick: () => void;
   rotation: Rotation;
+  gridArea: string;
 }) {
   const { state, dispatch } = useGame();
   const elapsed = useElapsed(state.timer);
@@ -40,17 +54,23 @@ export default function CenterHub({
   const clockNote = running ? "" : started ? ", paused" : ", not started";
 
   return (
-    <>
+    // Both controls are anchored to the centre of this cell and moved by
+    // transform alone. Centring them by layout instead does not survive the
+    // turned band: the track sizes itself to the widest control, which is wider
+    // than a band only deep enough for one pill, so it overflows to one side
+    // and takes both controls out over a card with it — the exact thing the
+    // band is here to prevent.
+    <div className="relative z-30" style={{ gridArea }}>
       {!started && (
         <button
           type="button"
           onClick={() => dispatch({ type: "RESUME_TIMER", at: Date.now() })}
           aria-label="Start the game clock"
-          className="absolute top-1/2 left-1/2 z-30 flex items-center gap-2 rounded-full border border-[var(--metal)] bg-[var(--parchment-bg)] px-4 py-2 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] whitespace-nowrap text-[var(--parchment)] uppercase shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:brightness-125"
+          className="absolute top-1/2 left-1/2 flex items-center gap-2 rounded-full border border-[var(--metal)] bg-[var(--parchment-bg)] px-4 py-2 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] whitespace-nowrap text-[var(--parchment)] uppercase shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:brightness-125"
           style={{
-            // The offset is applied first, in the button's own frame, so it
-            // lands above the hub as the player reading it sees "above".
-            transform: `translate(-50%, -50%) rotate(${rotation}deg) translateY(${START_OFFSET})`,
+            // Centred on the band, then turned, then moved — so the offset runs
+            // along the band as the player reading the button sees it.
+            transform: `translate(-50%, -50%) rotate(${rotation}deg) translateX(${START_OFFSET})`,
           }}
         >
           <svg
@@ -73,10 +93,8 @@ export default function CenterHub({
         aria-label={`Game settings. Elapsed ${formatElapsed(
           elapsed,
         )}${clockNote}`}
-        className="absolute top-1/2 left-1/2 z-30 flex items-center gap-1.5 rounded-full border border-[#33334a] bg-[#14141c] py-1.5 pr-3 pl-2.5 text-white/75 shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:bg-[#1d1d28]"
-        style={{
-          transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-        }}
+        className="absolute top-1/2 left-1/2 flex items-center gap-1.5 rounded-full border border-[#33334a] bg-[#14141c] py-1.5 pr-3 pl-2.5 text-white/75 shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:bg-[#1d1d28]"
+        style={{ transform: `translate(-50%, -50%) rotate(${rotation}deg)` }}
       >
         <svg
           width="14"
@@ -101,6 +119,6 @@ export default function CenterHub({
           {formatElapsed(elapsed)}
         </span>
       </button>
-    </>
+    </div>
   );
 }

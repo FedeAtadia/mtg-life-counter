@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { MAX_PLAYERS, MIN_PLAYERS } from "./rules";
-import { SEAT_LAYOUTS, layoutFor, upVectorFor } from "./seatLayout";
+import {
+  HUB_TRACK,
+  HUB_TRACK_RUNNING,
+  HUB_TRACK_VAR,
+  SEAT_LAYOUTS,
+  layoutFor,
+  upVectorFor,
+} from "./seatLayout";
 import type { Rotation } from "./seatLayout";
 
 const counts = Array.from(
@@ -32,9 +39,15 @@ describe("seat layouts", () => {
   });
 
   it.each(counts)(
-    "tiles the grid exactly once, with no overlaps or gaps (%i players)",
+    "tiles the grid exactly once, seats and hub together (%i players)",
     (count) => {
-      const areas = SEAT_LAYOUTS[count].seats.map((s) => parseArea(s.gridArea));
+      // The hub counts as one of the tiles (SEAT-7). That is the whole
+      // guarantee: if it claimed no cell of its own it would be floating over
+      // somebody's card again, and if it claimed one twice it would be sharing.
+      const layout = SEAT_LAYOUTS[count];
+      const areas = [...layout.seats.map((s) => s.gridArea), layout.hubArea].map(
+        parseArea,
+      );
       const rows = Math.max(...areas.map((a) => a.rowEnd)) - 1;
       const cols = Math.max(...areas.map((a) => a.colEnd)) - 1;
 
@@ -50,7 +63,7 @@ describe("seat layouts", () => {
         }
       }
 
-      // Every cell of the rows x cols grid is claimed by exactly one seat.
+      // Every cell of the rows x cols grid is claimed exactly once.
       expect(hits.size).toBe(rows * cols);
       for (const [cell, times] of hits) {
         expect(`${cell} claimed ${times}x`).toBe(`${cell} claimed 1x`);
@@ -61,7 +74,14 @@ describe("seat layouts", () => {
   it("seats four, five and six player games down the left and right edges", () => {
     for (const count of [4, 5, 6]) {
       const layout = SEAT_LAYOUTS[count];
-      expect(layout.cols).toBe("1fr 1fr");
+      const lastCol = Math.max(
+        ...layout.seats.map((s) => parseArea(s.gridArea).colStart),
+      );
+      // Two columns of seats, whatever sits between them: at five and six that
+      // is the hub's own track (SEAT-7), which is why this reads the columns
+      // the seats actually landed in rather than the template.
+      expect(new Set(layout.seats.map((s) => parseArea(s.gridArea).colStart)))
+        .toEqual(new Set([1, lastCol]));
       for (const seat of layout.seats) {
         const { colStart } = parseArea(seat.gridArea);
         // A seat points its text away from the edge that player sits at: the
@@ -69,6 +89,57 @@ describe("seat layouts", () => {
         expect(seat.rotation).toBe(colStart === 1 ? 90 : -90);
       }
     }
+  });
+
+  describe("the hub's own track (SEAT-7)", () => {
+    it("lies across the board where the seats are stacked, and down it where they are side by side", () => {
+      // Which way the band runs is the same question as which way the hub is
+      // turned, so the two are read off each other rather than listed twice.
+      for (const count of counts) {
+        const layout = SEAT_LAYOUTS[count];
+        const hub = parseArea(layout.hubArea);
+        const spansWidth = hub.colEnd - hub.colStart;
+        const spansHeight = hub.rowEnd - hub.rowStart;
+
+        if (layout.hubRotation === 0) {
+          // A row: one track tall, the full width of the board.
+          expect(spansHeight).toBe(1);
+          expect(spansWidth).toBeGreaterThan(0);
+        } else {
+          // A column: one track wide, the full height.
+          expect(spansWidth).toBe(1);
+          expect(spansHeight).toBeGreaterThan(1);
+        }
+      }
+    });
+
+    it("is the only track that is not a share of the board (SEAT-8)", () => {
+      // A `fr` track would grow the gap on a bigger screen; the seats should
+      // get that room instead. The depth itself is a custom property, because
+      // it has two values (SEAT-9) and the board picks between them.
+      for (const count of counts) {
+        const layout = SEAT_LAYOUTS[count];
+        const template =
+          layout.hubRotation === 0 ? layout.rows : layout.cols;
+        expect(template).toContain(HUB_TRACK_VAR);
+        // Every other track on that axis is a share.
+        const others = template.split(" ").filter((t) => t !== HUB_TRACK_VAR);
+        for (const track of others) {
+          expect(track).toMatch(/fr$/);
+        }
+      }
+    });
+
+    it("has one depth for the Start button and a smaller one without it (SEAT-9)", () => {
+      // Both absolute, so neither grows with the screen, and the running one
+      // genuinely smaller — otherwise the space Start needed is never given
+      // back and SEAT-9 buys nothing.
+      const rem = (v: string) => Number.parseFloat(v);
+      for (const value of [HUB_TRACK, HUB_TRACK_RUNNING]) {
+        expect(value).toMatch(/rem$/);
+      }
+      expect(rem(HUB_TRACK_RUNNING)).toBeLessThan(rem(HUB_TRACK));
+    });
   });
 
   // Screen axes: +x right, +y down. Written out by hand rather than derived, so
