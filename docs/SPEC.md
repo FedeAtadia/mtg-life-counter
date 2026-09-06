@@ -48,6 +48,10 @@ files that hold it up.
 - **LIFE-4** A chip shows the running net of the current exchange, signed, and
   clears 1.6 seconds after the last change. It counts a slide notch by notch,
   so the number being dialled in is visible before the finger lifts.
+- **LIFE-6** The chip is drawn over the life total, on a plate opaque enough to
+  occlude it. There is no room beside the total once the card carries a text
+  box (CMDR-13), and bare translucent digits laid over it merge with it: a
+  "−5" over a "41" reads as "45", which is worse than showing nothing.
 - **LIFE-5** A seat that is already out keeps counting.
 
 ## HOLD — How a press counts
@@ -96,8 +100,10 @@ turns one into the other — there is no clock in this anywhere.
 
 ## CMDR — Commander damage
 
-*Enforced by `lib/gameReducer.ts`, `components/CommanderDamageOverlay.tsx`.
-Covered by `lib/gameReducer.test.ts`, `components/CommanderDamageOverlay.test.tsx`.*
+*Enforced by `lib/gameReducer.ts`, `lib/rules.ts`,
+`components/CommanderDamageOverlay.tsx`, `components/DamageReadout.tsx`.
+Covered by `lib/gameReducer.test.ts`, `lib/rules.test.ts`,
+`components/CommanderDamageOverlay.test.tsx`, `components/PlayerPanel.test.tsx`.*
 
 - **CMDR-1** Every player holds exactly one counter per opponent, and none for
   themselves.
@@ -113,8 +119,10 @@ Covered by `lib/gameReducer.test.ts`, `components/CommanderDamageOverlay.test.ts
 - **CMDR-6** Damage never changes the life total of the player who dealt it.
 - **CMDR-7** Self-damage and damage from a player who is not at the table are
   ignored.
-- **CMDR-8** One damage panel is open at a time. It closes on Done, on the
-  backdrop, on its own button, and when the player it belongs to leaves.
+- **CMDR-8** One damage panel is open at a time. It opens by pressing the
+  commander damage block on a card — the type line and the readout beneath it
+  are one target — and closes on Done, on the backdrop, on that same block, and
+  when the player it belongs to leaves.
 - **CMDR-9** Every row of tiles fills the width. Up to three opponents share a
   single row; four split two and two; five split three and two. No tile is ever
   left alone beside an empty cell — a three-column grid did that to five
@@ -128,6 +136,18 @@ Covered by `lib/gameReducer.test.ts`, `components/CommanderDamageOverlay.test.ts
   would cost more legibility than the extra size buys.
 - **CMDR-12** It is reachable only in Commander, and a format change while it
   is open closes it.
+- **CMDR-13** A card shows what every opponent's commander has dealt its player
+  without anything being opened, in a text box where a real card keeps its
+  rules. Reading the table is the common act; entering damage is the rare one,
+  and only the rare one should cost a tap.
+- **CMDR-14** Up to three opponents get a line each — pip, name and value. Four
+  or more get pips and values without names, because four lines will not fit
+  beside a life total on a phone six people are sharing.
+- **CMDR-15** A counter at lethal is marked on the readout itself, so a seat
+  that is out can be traced to the commander that did it without opening
+  anything.
+- **CMDR-16** The readout is drawn only in Commander (FMT-6). In Standard the
+  text box goes with it, and the life total takes back the height.
 
 ## OUT — Elimination
 
@@ -139,7 +159,9 @@ Covered by `lib/gameReducer.test.ts`, `components/CommanderDamageOverlay.test.ts
 - **OUT-2** Elimination is derived, never destructive. The seat stays on the
   board, and the mark clears the moment the total is corrected.
 - **OUT-3** The mark says why: "0 life" or "21 cmdr damage". Life takes
-  precedence when both apply.
+  precedence when both apply. It is carried on the card's type line, in place
+  of what that line normally reads — which is where a card says what a thing
+  is, and costs no height of its own.
 
 ## ROSTER — Who is at the table
 
@@ -377,6 +399,14 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   frame are asserted structurally (grid areas, rotations, tile columns) but
   never rendered for real — jsdom does not lay anything out. `SEAT-5` in
   particular is checked by eye, not by test.
+- **That the card frame fits.** `CMDR-13` costs the life total about half its
+  height at four players — 87 px to 45 — and `CMDR-14` exists because the rows
+  stop fitting at four opponents. Which mode is chosen is tested; that the
+  chosen one is legible on a real phone is not, and cannot be here.
+- **That the chip occludes.** `LIFE-6` is a rule about one thing being drawn
+  over another, which jsdom has no way to disagree with. What is covered is
+  that the chip is there and reads correctly; that it does not merge into the
+  total behind it is checked by eye.
 - **Real pointer capture.** jsdom has no `setPointerCapture`, so the path where
   a thumb slides off a button and the gesture survives is exercised only
   through the guard around it. Any slide worth much leaves the button it
