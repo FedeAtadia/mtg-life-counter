@@ -321,6 +321,38 @@ thing a page can do about that.
 - **PLAT-4** The board is built for a phone lying flat in the middle of a
   table, and honours the safe-area insets on all four edges.
 
+## PWA — Installing it, and playing with no signal
+
+*Enforced by `app/manifest.ts`, `lib/useServiceWorker.ts`, `public/sw.js`,
+`app/layout.tsx`. Covered by `app/manifest.test.ts`,
+`lib/useServiceWorker.test.ts`.*
+
+A counter belongs on a table, not in a browser tab. Installed to the home
+screen it opens without browser chrome and keeps working in a room with no
+signal, which is most of the rooms this gets played in.
+
+- **PWA-1** A web app manifest is served, so a phone offers to install the app.
+- **PWA-2** Installed, it opens standalone — no browser chrome — and starts on
+  the board.
+- **PWA-3** The manifest carries the icon sizes an installer asks for,
+  including a maskable one, so Android does not letterbox the icon inside its
+  own shape.
+- **PWA-4** The manifest's colours are the board's colours, so launching does
+  not flash a colour the app never uses.
+- **PWA-5** A service worker takes a copy of the app shell on first visit, so a
+  later visit with no signal still deals a board.
+- **PWA-6** It answers from its copy first and refreshes that copy behind the
+  game, so play never waits on the network.
+- **PWA-7** A build clears the caches left by the one before it, so an install
+  does not accumulate them.
+- **PWA-8** Registration is best-effort. A browser with no service worker
+  support, or one that refuses, plays exactly as it did before: nothing is
+  called and nothing throws (as AWAKE-3).
+- **PWA-9** No worker is registered on a development server, where a cached
+  shell would serve yesterday's code back to whoever is working on it.
+- **PWA-10** Settings says which of those happened, so a phone that will not
+  play offline has an explanation rather than looking like a bug (as AWAKE-6).
+
 ---
 
 ## Deliberately not specified
@@ -332,8 +364,10 @@ it is built.
   keys damage per source, which is what this needs.
 - Poison, energy and experience counters.
 - Undo history.
-- Installable / offline PWA support.
 - Turn order, or a per-player turn timer.
+- Prompting for the install rather than leaving it to the browser, and telling
+  the player when a new version has been cached and is waiting for a reload.
+  Installing and playing offline are specified above (PWA).
 
 ## Known gaps
 
@@ -355,6 +389,15 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   real phone stays awake. AWAKE-1 is checked by hand on a device, like the buzz.
 - **Touch behaviour.** `touch-action: none` and the absence of scroll-on-hold
   are not testable here.
+- **The service worker itself.** What is covered is the registering: that it is
+  asked for, skipped where it cannot work, and never throws (PWA-8, PWA-9).
+  `public/sw.js` runs in a worker scope jsdom does not provide, so caching the
+  shell, answering from it and clearing old caches (PWA-5, PWA-6, PWA-7) are
+  checked by hand — load the board, go offline, reload. Same shape as the wake
+  lock: the asking is tested, the effect is not.
+- **Installability.** That a phone actually offers to install the app depends
+  on the browser's own criteria, which no test here can stand in for. The
+  manifest's contents are asserted; the offer is checked on a device.
 - **Render scope.** The clock is kept in the centre hub so a passing second
   repaints that pill alone rather than every seat, and the context value is
   memoised for the same reason (STATE-5). The memoisation is tested; that the

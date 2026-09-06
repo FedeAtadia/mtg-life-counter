@@ -170,6 +170,32 @@ A clock that has never run is not stored as a flag: it is simply a stopped
 clock with nothing on it (`hasStarted`), which is why saved games written
 before the button existed still read correctly.
 
+### Installing it
+
+`app/manifest.ts` is what a phone reads to offer the install; `public/sw.js`
+keeps a copy of the app so a later visit with no signal still deals a board.
+The worker answers from its copy first and refreshes it behind the game, so
+play never waits on a network — which is the point, given where this gets used.
+
+It caches what the app actually asks for rather than a list written at build
+time. A precache list has to name every hashed chunk and be kept correct;
+caching on demand needs none of that and reaches exactly the files a real visit
+uses.
+
+Nothing depends on it. A browser without service workers, one that refuses, and
+a development server — where a cached shell would only serve back stale code —
+all play exactly as before, and settings says which of those happened.
+
+The home screen icons are generated rather than drawn by hand:
+
+```bash
+node scripts/make-icons.mjs
+```
+
+That script draws the card the app is built around and writes the three PNGs
+into `public/icons/`. It is committed with them so the icons can be regenerated
+when the palette moves, instead of being three binaries nobody can edit.
+
 ### Keeping the screen lit
 
 `lib/useWakeLock.ts` holds a screen wake lock while the board is on screen, so

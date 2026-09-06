@@ -20,6 +20,7 @@ import { formatElapsed, hasStarted, isRunning } from "@/lib/timer";
 import { useElapsed } from "@/lib/useElapsed";
 import { useGame } from "@/lib/useGame";
 import type { Format } from "@/lib/types";
+import type { ServiceWorkerStatus } from "@/lib/useServiceWorker";
 import type { WakeLockStatus } from "@/lib/useWakeLock";
 
 const FORMATS: Format[] = ["standard", "commander"];
@@ -34,6 +35,20 @@ const SCREEN_NOTE: Record<WakeLockStatus, string> = {
     "The browser would not keep the screen lit — battery saver usually does that. It will dim as it normally does.",
   unavailable:
     "This browser cannot keep the screen lit — on iOS that needs Safari 16.4 or newer — so it will dim as it normally does.",
+};
+
+/**
+ * Whether there is an offline copy to play from (PWA-10). Same reasoning as the
+ * screen note: a phone that will not open the board on the underground should
+ * say why rather than look broken.
+ */
+const OFFLINE_NOTE: Record<ServiceWorkerStatus, string> = {
+  registered:
+    "Saved for offline play. Add it to your home screen and it opens with no signal.",
+  refused:
+    "This page could not be saved for offline play — a browser set to block site data usually does that. It still works online.",
+  unavailable:
+    "Offline play is not available in this browser. It still works online.",
 };
 
 /**
@@ -52,9 +67,11 @@ function useArmedAction(timeoutMs = 3500) {
 
 export default function SettingsSheet({
   wakeLock,
+  offline,
   onClose,
 }: {
   wakeLock: WakeLockStatus;
+  offline: ServiceWorkerStatus;
   onClose: () => void;
 }) {
   const { state, dispatch } = useGame();
@@ -287,6 +304,11 @@ export default function SettingsSheet({
         <SectionLabel>Screen</SectionLabel>
         <p className="mb-5 text-xs leading-snug text-[var(--muted)]">
           {SCREEN_NOTE[wakeLock]}
+        </p>
+
+        <SectionLabel>Offline</SectionLabel>
+        <p className="mb-5 text-xs leading-snug text-[var(--muted)]">
+          {OFFLINE_NOTE[offline]}
         </p>
 
         <button

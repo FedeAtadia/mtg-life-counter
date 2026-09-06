@@ -7,6 +7,7 @@ import PlayerSeat from "./PlayerSeat";
 import SettingsSheet from "./SettingsSheet";
 import { layoutFor } from "@/lib/seatLayout";
 import { useGame } from "@/lib/useGame";
+import { useServiceWorker } from "@/lib/useServiceWorker";
 import { useWakeLock } from "@/lib/useWakeLock";
 import type { PlayerId } from "@/lib/types";
 
@@ -17,6 +18,9 @@ export default function GameBoard() {
   // Held here rather than in the sheet: the screen has to stay lit while the
   // board is being played, not only while settings happen to be open.
   const wakeLock = useWakeLock();
+  // Registered from the board because the board is the app: there is one route,
+  // and this is the only thing mounted for the whole of a game.
+  const offline = useServiceWorker();
 
   const layout = layoutFor(state.players.length);
 
@@ -75,6 +79,7 @@ export default function GameBoard() {
       {settingsOpen && (
         <SettingsSheet
           wakeLock={wakeLock}
+          offline={offline}
           onClose={() => setSettingsOpen(false)}
         />
       )}
