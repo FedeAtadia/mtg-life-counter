@@ -45,7 +45,15 @@ export interface Seat {
  * seats, that it comes out of the height and the totals actually shrink.
  */
 export const HUB_TRACK = "2.75rem";
-export const HUB_TRACK_RUNNING = "2.25rem";
+/**
+ * The floor, near enough. The clock pill is 28px tall, so this leaves 2px of
+ * band either side of it and the board's own 4px gap beyond that before a
+ * card. Anything smaller stops being a band: at 1rem the pill stands 6px proud
+ * of its own track on each side and goes straight back over the two seats it
+ * runs between, which is the whole thing SEAT-7 exists to prevent. Going below
+ * this means shrinking the pill first.
+ */
+export const HUB_TRACK_RUNNING = "2rem";
 
 /** What the grid templates name; GameBoard sets it to one of the two above. */
 export const HUB_TRACK_VAR = "var(--hub-track)";
