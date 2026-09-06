@@ -65,7 +65,7 @@ reason.
   `test/harness.tsx`. Components take their player as a prop but dispatch
   through the context, so a panel mounted alone shows a total that never moves.
 
-**Three things that will catch you out:**
+**Four things that will catch you out:**
 
 - **Fake timers need `act`.** `act(() => vi.advanceTimersByTime(ms))`, or React
   will not flush the state update. `fireEvent` wraps itself already.
@@ -74,6 +74,11 @@ reason.
 - **`renderBoard(state)` seeds storage**, so the provider hydrates that state
   rather than dealing a fresh board — including its timer. Pass a running timer
   if the test needs a running clock (see TIMER-4).
+- **`localStorage` in tests is ours, not jsdom's.** Node ships its own Web
+  Storage — on by default from Node 24 — and it shadows jsdom's with something
+  that is not a Storage at all. `vitest.setup.ts` replaces it with a small
+  in-memory one so the suite runs the same on any Node. It is writable, so
+  spying on it or making it throw still works.
 
 ## Commands
 

@@ -21,6 +21,36 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/**
+ * The tripwire for the environment itself. Node ships its own Web Storage, on
+ * by default from Node 24, and it shadows jsdom's — leaving something that is
+ * not a Storage at all. Without this, that shows up as a hundred-odd failures
+ * across seven files with one cause, which is a bad afternoon. See
+ * `vitest.setup.ts`.
+ */
+describe("the test environment", () => {
+  it("provides a Storage the app can actually use", () => {
+    for (const method of ["getItem", "setItem", "removeItem", "clear", "key"]) {
+      expect(typeof window.localStorage[method as "clear"]).toBe("function");
+    }
+  });
+
+  it("keeps what it is given, and lets go of it", () => {
+    window.localStorage.setItem("probe", "kept");
+    expect(window.localStorage.getItem("probe")).toBe("kept");
+    expect(window.localStorage.length).toBe(1);
+
+    window.localStorage.clear();
+    expect(window.localStorage.getItem("probe")).toBeNull();
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it("reports a miss as null rather than undefined", () => {
+    // parseGameState leans on this: loadGame checks the value it gets back.
+    expect(window.localStorage.getItem("never-written")).toBeNull();
+  });
+});
+
 describe("saveGame / loadGame", () => {
   it("round-trips a game through storage", () => {
     const saved = gameReducer(createGame("commander", 4), {
