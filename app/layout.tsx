@@ -31,6 +31,17 @@ export const metadata: Metadata = {
   title: "MTG Life Counter",
   description:
     "Life and commander damage tracker for 2-6 player Magic: The Gathering games.",
+  // Android reads all of this from the manifest; iOS does not, and wants its
+  // own tags to open standalone with the right icon (PWA-2, PWA-3).
+  appleWebApp: {
+    capable: true,
+    title: "MTG Life",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/icon-192.png",
+  },
 };
 
 export const viewport: Viewport = {
