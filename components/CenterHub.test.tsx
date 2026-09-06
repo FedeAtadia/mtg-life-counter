@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createGame } from "@/lib/gameReducer";
+import { SEAT_LAYOUTS } from "@/lib/seatLayout";
 import { startedTimerAt } from "@/lib/timer";
 import { hub, openSettings, renderBoard } from "../test/harness";
 
@@ -80,5 +81,42 @@ describe("starting the game (TIMER-7)", () => {
 
     expect(startButton()!.style.transform).toContain("rotate(90deg)");
     expect(hub().style.transform).toContain("rotate(90deg)");
+  });
+});
+
+describe("where the hub sits (SEAT-7, TIMER-9)", () => {
+  it("leaves the clock in the same place when Start goes away", () => {
+    // The clock is on the board for the whole game and Start for the first few
+    // seconds of it. If starting a game shifted the clock, the one control
+    // anybody reaches for all night would move the moment play began.
+    renderBoard();
+    expect(startButton()).toBeInTheDocument();
+    const before = hub().style.transform;
+
+    fireEvent.click(startButton()!);
+
+    expect(startButton()).not.toBeInTheDocument();
+    expect(hub().style.transform).toBe(before);
+  });
+
+  it("moves Start along the hub's band, never across it", () => {
+    // The band is only deep enough for one pill (SEAT-7), so an offset across
+    // it would put Start back over a card — which is what the band exists to
+    // stop. In the hub's own frame that is translateX either way.
+    renderBoard();
+
+    const moved = startButton()!.style.transform;
+    expect(moved).toContain("translateX");
+    expect(moved).not.toContain("translateY");
+  });
+
+  it("gives the hub a cell of the board rather than floating it over one", () => {
+    renderBoard(createGame("commander", 6));
+
+    // Its own grid area, and the seats never claim it — the tiling test in
+    // lib/seatLayout.test.ts is what holds the other half of that up.
+    expect(hub().parentElement).toHaveStyle({
+      gridArea: SEAT_LAYOUTS[6].hubArea,
+    });
   });
 });

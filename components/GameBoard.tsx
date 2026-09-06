@@ -62,6 +62,7 @@ export default function GameBoard() {
       <CenterHub
         onClick={() => setSettingsOpen(true)}
         rotation={layout.hubRotation}
+        gridArea={layout.hubArea}
       />
 
       {/* Laid over the whole board rather than inside one seat, so the

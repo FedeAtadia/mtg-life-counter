@@ -22,6 +22,22 @@ export interface Seat {
   rotation: Rotation;
 }
 
+/**
+ * How much of the board the hub's own track takes (SEAT-7).
+ *
+ * Enough for the settings pill and the Start button beside it, and not a pixel
+ * more: every one of these is taken off a card. Fixed rather than a share
+ * (SEAT-8), so a larger screen spends its extra room on the seats.
+ *
+ * Which direction it costs depends on the seats either side of it, and the
+ * answer is better than it sounds. At four players the seats are turned a
+ * quarter, so a band lying across the board shortens their panels rather than
+ * flattening them — and a life total is sized by the panel's height. It is at
+ * five and six, where the band runs down the board between two columns of
+ * seats, that it comes out of the height and the totals actually shrink.
+ */
+export const HUB_TRACK = "2.75rem";
+
 export interface BoardLayout {
   /** Raw grid-template-rows / grid-template-columns values. */
   rows: string;
@@ -32,30 +48,37 @@ export interface BoardLayout {
    * With five or six players the two middle seats sit either side of the
    * centre with their names against the seam, so a hub lying across that seam
    * covers them. Turning it a quarter keeps it in line with the gap.
+   *
+   * It also says which way the hub's track runs: upright means a row across
+   * the board, turned means a column down it.
    */
   hubRotation: Rotation;
+  /** The hub's own cell, in the same grid-area form the seats use. */
+  hubArea: string;
   seats: Seat[];
 }
 
 export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
   // Two players facing each other across the device.
   2: {
-    rows: "1fr 1fr",
+    rows: `1fr ${HUB_TRACK} 1fr`,
     cols: "1fr",
     hubRotation: 0,
+    hubArea: "2 / 1 / 3 / 2",
     seats: [
-      { gridArea: "2 / 1 / 3 / 2", rotation: 0 },
+      { gridArea: "3 / 1 / 4 / 2", rotation: 0 },
       { gridArea: "1 / 1 / 2 / 2", rotation: 180 },
     ],
   },
 
   // Near edge plus one on each side.
   3: {
-    rows: "1.25fr 1fr",
+    rows: `1.25fr ${HUB_TRACK} 1fr`,
     cols: "1fr 1fr",
     hubRotation: 0,
+    hubArea: "2 / 1 / 3 / 3",
     seats: [
-      { gridArea: "2 / 1 / 3 / 3", rotation: 0 },
+      { gridArea: "3 / 1 / 4 / 3", rotation: 0 },
       { gridArea: "1 / 1 / 2 / 2", rotation: 90 },
       { gridArea: "1 / 2 / 2 / 3", rotation: -90 },
     ],
@@ -63,15 +86,16 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
 
   // Two per side, one to each corner.
   4: {
-    rows: "1fr 1fr",
+    rows: `1fr ${HUB_TRACK} 1fr`,
     cols: "1fr 1fr",
-    // The centre lands where four corners meet, clear of every name.
+    // The band runs between the two rows of seats, clear of every name.
     hubRotation: 0,
+    hubArea: "2 / 1 / 3 / 3",
     seats: [
-      { gridArea: "2 / 1 / 3 / 2", rotation: 90 },
+      { gridArea: "3 / 1 / 4 / 2", rotation: 90 },
       { gridArea: "1 / 1 / 2 / 2", rotation: 90 },
       { gridArea: "1 / 2 / 2 / 3", rotation: -90 },
-      { gridArea: "2 / 2 / 3 / 3", rotation: -90 },
+      { gridArea: "3 / 2 / 4 / 3", rotation: -90 },
     ],
   },
 
@@ -79,31 +103,34 @@ export const SEAT_LAYOUTS: Record<number, BoardLayout> = {
   // divide the same height into three and into two, with nothing left over.
   5: {
     rows: "repeat(6, 1fr)",
-    cols: "1fr 1fr",
-    // Middle seats sit either side of the centre with their names on the seam.
+    cols: `1fr ${HUB_TRACK} 1fr`,
+    // Middle seats sit either side of the centre with their names on the seam,
+    // so the band runs down between the two columns rather than across them.
     hubRotation: 90,
+    hubArea: "1 / 2 / 7 / 3",
     seats: [
       { gridArea: "5 / 1 / 7 / 2", rotation: 90 },
       { gridArea: "3 / 1 / 5 / 2", rotation: 90 },
       { gridArea: "1 / 1 / 3 / 2", rotation: 90 },
-      { gridArea: "1 / 2 / 4 / 3", rotation: -90 },
-      { gridArea: "4 / 2 / 7 / 3", rotation: -90 },
+      { gridArea: "1 / 3 / 4 / 4", rotation: -90 },
+      { gridArea: "4 / 3 / 7 / 4", rotation: -90 },
     ],
   },
 
   // Three down each side.
   6: {
     rows: "1fr 1fr 1fr",
-    cols: "1fr 1fr",
+    cols: `1fr ${HUB_TRACK} 1fr`,
     // Middle seats sit either side of the centre with their names on the seam.
     hubRotation: 90,
+    hubArea: "1 / 2 / 4 / 3",
     seats: [
       { gridArea: "3 / 1 / 4 / 2", rotation: 90 },
       { gridArea: "2 / 1 / 3 / 2", rotation: 90 },
       { gridArea: "1 / 1 / 2 / 2", rotation: 90 },
-      { gridArea: "1 / 2 / 2 / 3", rotation: -90 },
-      { gridArea: "2 / 2 / 3 / 3", rotation: -90 },
-      { gridArea: "3 / 2 / 4 / 3", rotation: -90 },
+      { gridArea: "1 / 3 / 2 / 4", rotation: -90 },
+      { gridArea: "2 / 3 / 3 / 4", rotation: -90 },
+      { gridArea: "3 / 3 / 4 / 4", rotation: -90 },
     ],
   },
 };

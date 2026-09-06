@@ -225,6 +225,11 @@ Covered by `lib/gameReducer.test.ts`, `lib/rules.test.ts`,
   CSS alone — no measuring and no resize observers.
 - **SEAT-6** A seat and the slide gesture take their sense of “up” from one
   function, so the two can never disagree about which way a player is facing.
+- **SEAT-7** The centre hub sits in a track of its own between the seats — a
+  row at two, three and four players, a column at five and six — so nothing is
+  ever drawn over a card. Seats and hub together tile the board exactly once.
+- **SEAT-8** That track is a fixed size rather than a share of the board, so a
+  larger screen gives its extra room to the seats and not to the gap.
 
 ## TIMER — The game clock
 
@@ -253,6 +258,10 @@ Covered by `lib/timer.test.ts`, `lib/useElapsed.test.ts`,
 - **TIMER-8** The one timer control in settings reads Start before the clock
   has ever run, Pause while it is running, and Resume once there is time
   banked.
+- **TIMER-9** The clock keeps the exact centre of the board whether or not the
+  Start button is beside it. Start is there for the first few seconds of a
+  game; the clock is there for all of it, and the thing that stays should not
+  be moved by the thing that goes.
 
 ## SAVE — Persistence
 
@@ -403,6 +412,13 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   height at four players — 87 px to 45 — and `CMDR-14` exists because the rows
   stop fitting at four opponents. Which mode is chosen is tested; that the
   chosen one is legible on a real phone is not, and cannot be here.
+- **That the hub's band holds its controls.** `SEAT-7` is tested as grid
+  areas, which is what stops a *card* reaching into the band. Whether the
+  clock and the Start button stay inside it is a question about their rendered
+  widths against a `2.75rem` track, and jsdom lays nothing out. It is checked
+  in a browser by measuring both against the band's own rectangle — and it has
+  already failed once there, when the controls were centred by layout rather
+  than by transform and the track sized itself to the wider of them.
 - **That the chip occludes.** `LIFE-6` is a rule about one thing being drawn
   over another, which jsdom has no way to disagree with. What is covered is
   that the chip is there and reads correctly; that it does not merge into the
