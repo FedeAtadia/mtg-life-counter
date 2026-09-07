@@ -5,7 +5,12 @@ import CenterHub from "./CenterHub";
 import CommanderDamageOverlay from "./CommanderDamageOverlay";
 import PlayerSeat from "./PlayerSeat";
 import SettingsSheet from "./SettingsSheet";
-import { layoutFor } from "@/lib/seatLayout";
+import {
+  HUB_TRACK,
+  HUB_TRACK_RUNNING,
+  layoutFor,
+} from "@/lib/seatLayout";
+import { hasStarted } from "@/lib/timer";
 import { useGame } from "@/lib/useGame";
 import { useServiceWorker } from "@/lib/useServiceWorker";
 import { useWakeLock } from "@/lib/useWakeLock";
@@ -24,6 +29,12 @@ export default function GameBoard() {
 
   const layout = layoutFor(state.players.length);
 
+  // How deep the hub's band has to be (SEAT-9). Read off the same predicate
+  // that decides whether the Start button is drawn at all (TIMER-7), because
+  // a band sized for a button that is not there — or, worse, not sized for one
+  // that is — is the one way these two can disagree.
+  const hubTrack = hasStarted(state.timer) ? HUB_TRACK_RUNNING : HUB_TRACK;
+
   // Derived rather than synced: if the player whose damage panel was open has
   // since left the game — or the format changed out from under it — the stored
   // id simply stops matching anyone.
@@ -39,6 +50,8 @@ export default function GameBoard() {
       style={{
         gridTemplateRows: layout.rows,
         gridTemplateColumns: layout.cols,
+        // Both templates name this, and only the hub's track uses it.
+        ["--hub-track" as string]: hubTrack,
         gap: "4px",
         paddingTop: "max(4px, env(safe-area-inset-top))",
         paddingBottom: "max(4px, env(safe-area-inset-bottom))",
@@ -62,6 +75,7 @@ export default function GameBoard() {
       <CenterHub
         onClick={() => setSettingsOpen(true)}
         rotation={layout.hubRotation}
+        gridArea={layout.hubArea}
       />
 
       {/* Laid over the whole board rather than inside one seat, so the

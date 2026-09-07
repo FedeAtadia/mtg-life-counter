@@ -242,7 +242,9 @@ describe("naming players", () => {
     });
     fireEvent.click(within(sheet).getByText("Done"));
 
-    expect(screen.getByText("Fede")).toBeInTheDocument();
+    // On their own card: the name is on every opponent's damage readout too
+    // now (CMDR-13), so it is no longer unique on the board.
+    expect(within(panelFor("Fede")).getByText("Fede")).toBeInTheDocument();
   });
 
   it("stops the input at the length the type line can hold", () => {
@@ -263,7 +265,9 @@ describe("naming players", () => {
     fireEvent.change(input, { target: { value: "Fede" } });
     fireEvent.change(input, { target: { value: "" } });
 
-    expect(screen.getByText("Player 1")).toBeInTheDocument();
+    expect(
+      within(panelFor("Player 1")).getByText("Player 1"),
+    ).toBeInTheDocument();
   });
 });
 
@@ -365,7 +369,7 @@ describe("resetting the game", () => {
     fireEvent.click(within(sheet).getByText(/Reset game/));
     fireEvent.click(within(sheet).getByText(/Tap again to reset/));
 
-    expect(screen.getByText("Fede")).toBeInTheDocument();
+    expect(within(panelFor("Fede")).getByText("Fede")).toBeInTheDocument();
     sheet = openSettings();
     expect(
       within(colourGroup(sheet, "Player 1")).getByLabelText("Red"),

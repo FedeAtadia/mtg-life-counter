@@ -11,6 +11,23 @@ export const LETHAL_COMMANDER_DAMAGE = 21;
 
 export const MAX_NAME_LENGTH = 16;
 
+/**
+ * The most opponents whose damage still fits on the card as a named line each.
+ *
+ * Past this the readout drops to pips and values (CMDR-14). The number is a
+ * measurement, not a preference: at four players a panel is 189 px tall and a
+ * line costs 18 of them, which leaves the life total 45 px. A fourth line takes
+ * that below what reads across a table.
+ */
+export const MAX_NAMED_DAMAGE_ROWS = 3;
+
+export type DamageReadoutMode = "rows" | "tiles";
+
+/** How a card draws its damage readout for this many opponents (CMDR-14). */
+export function damageReadoutMode(opponents: number): DamageReadoutMode {
+  return opponents > MAX_NAMED_DAMAGE_ROWS ? "tiles" : "rows";
+}
+
 export function startingLifeFor(format: Format): number {
   return format === "commander" ? 40 : 20;
 }
