@@ -59,6 +59,25 @@ export function resetFromSettings(sheet: HTMLElement) {
   answerReset("Reset");
 }
 
+/** The dice button in the hub's row (ROLL-1). */
+export const diceButton = () =>
+  screen.getByRole("button", { name: "Throw a die or flip a coin" });
+
+/** The picker of dice and the coin, or null when it is not up. */
+export const dicePicker = () =>
+  screen.queryByRole("dialog", { name: "Throw a die" });
+
+/** One option in the open picker: "d4" through "d20", or "Coin". */
+export function pickerOption(name: string): HTMLElement {
+  const picker = dicePicker();
+  if (!picker) throw new Error("the dice picker is not open");
+  return within(picker).getByRole("button", { name });
+}
+
+/** The result of the last throw, while it is up (ROLL-5). */
+export const throwResult = () =>
+  screen.queryByRole("dialog", { name: /^Thrown/ });
+
 /** The panel for one seat, found by the name on its type line. */
 export function panelFor(name: string): HTMLElement {
   const zone = screen.getByLabelText(

@@ -1,5 +1,6 @@
 "use client";
 
+import DiceButton from "./DiceButton";
 import { formatElapsed, hasStarted, isRunning } from "@/lib/timer";
 import { useElapsed } from "@/lib/useElapsed";
 import { useGame } from "@/lib/useGame";
@@ -115,6 +116,7 @@ export default function CenterHub({
       </button>
 
       <div className="flex min-w-0 justify-start gap-2">
+        <DiceButton className={ROUND_BUTTON} />
         <button
           type="button"
           onClick={onReset}

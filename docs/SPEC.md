@@ -277,6 +277,40 @@ Covered by `lib/timer.test.ts`, `lib/useElapsed.test.ts`,
   displaced along the band by the thing that goes — nor by anything else the
   band holds, however many things that is.
 
+## ROLL — Dice and a coin
+
+*Enforced by `lib/dice.ts`, `lib/useLongPress.ts`, `components/DiceButton.tsx`,
+`components/DicePicker.tsx`, `components/RollResult.tsx`. Covered by
+`lib/dice.test.ts`, `lib/useLongPress.test.tsx`,
+`components/DiceButton.test.tsx`.*
+
+The first thing in the app that is random, and the first press that means
+something by waiting. Both are fenced off from the rest: randomness never
+reaches a render or the reducer, and a wait means something only on this one
+button — the life and damage sliders still take no notice of time at all
+(HOLD-2), because there travel is the input and here there is no travel that
+could mean anything.
+
+- **ROLL-1** One button in the hub's row throws a d4, d6, d8, d10, d12 or d20,
+  or flips a coin. It sits on the clock's far side from Start, so the clock
+  keeps its centre (TIMER-9).
+- **ROLL-2** A tap opens the picker. A press held for 350 ms opens it too, with
+  the finger still down, so sliding onto an option and lifting throws it — a
+  die chosen and thrown in one gesture.
+- **ROLL-3** Lifting a held press anywhere but on an option leaves the picker
+  open, as if it had been tapped open. Nothing is thrown that nobody chose.
+- **ROLL-4** A die of `n` sides lands on a whole number from 1 to `n`, each
+  equally likely; a coin lands heads or tails, each equally likely.
+- **ROLL-5** The result stays up until it is pressed away, however long that
+  takes, and names the die it came off — "17" alone does not settle an
+  argument about which die was thrown.
+- **ROLL-6** The result reads upright from both long edges of the table at
+  once. A throw belongs to no one seat, so it does not face one.
+- **ROLL-7** A throw changes nothing in the game and is not saved. It is not a
+  life total.
+- **ROLL-8** Nothing random is read while rendering — only when an option is
+  chosen — so the prerendered board and the hydrated one agree (PLAT-3).
+
 ## SAVE — Persistence
 
 *Enforced by `lib/storage.ts`, `lib/useGame.tsx`. Covered by
@@ -440,10 +474,12 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   controls stay inside it is a question about their rendered sizes against a
   `2.75rem` row the width of the phone, and jsdom lays nothing out. It is
   checked in a browser by measuring every control against the row's own
-  rectangle, at the narrowest phone worth supporting. It has failed there
-  before: when the hub still turned a quarter at five and six, centring by
-  layout let the turned track size itself to its widest control and spill over
-  a card. The hub no longer turns, which is what makes layout safe again —
+  rectangle, at the narrowest phone worth supporting: four controls at 360px
+  wide, with Start on one side of the clock and dice and reset on the other,
+  because Start and reset together overflow their half. It has failed there
+  before — when the hub still turned a quarter at five and six, centring by
+  layout let the turned track size itself to its widest control and spill
+  over a card. The hub no longer turns, which is what makes layout safe again;
   `TIMER-9` asserts the clock's column, not its pixels.
 - **That the chip occludes.** `LIFE-6` is a rule about one thing being drawn
   over another, which jsdom has no way to disagree with. What is covered is
@@ -453,9 +489,23 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   a thumb slides off a button and the gesture survives is exercised only
   through the guard around it. Any slide worth much leaves the button it
   started on, so capture is what makes HOLD-8 work on a phone, and nothing
-  here proves it.
+  here proves it. The same goes for the dice button (ROLL-2): once the picker
+  is up, capture is what keeps the finger's moves coming to the button that
+  reports them.
+- **Which option is under a real finger.** `ROLL-2` and `ROLL-3` are tested
+  with a stand-in `elementFromPoint`, because jsdom lays nothing out and has
+  none of its own — so the tests say what is under the finger and check what
+  the picker does about it. That the browser's own hit test finds the option a
+  thumb is actually on is checked in a browser with dispatched pointer events,
+  and on a phone.
+- **Timers in a hidden page.** The long press (ROLL-2) waits on a timer, and a
+  browser throttles timers in a page it is not showing — a 350 ms wait has
+  been measured at two seconds in a hidden tab. Nobody plays on a hidden page,
+  but anybody checking the hold in a background tab will see it late, and it
+  is not the code.
 - **The buzz.** jsdom has no `navigator.vibrate`. The feature test guarding it
-  is covered; the buzz itself (HOLD-12) is checked by hand on a device.
+  is covered; the buzz itself (HOLD-12, and the one a long press gives) is
+  checked by hand on a device.
 - **The screen staying lit.** `navigator.wakeLock` is stubbed in the tests, so
   what is covered is the asking, the asking again and the release — not that a
   real phone stays awake. AWAKE-1 is checked by hand on a device, like the buzz.
