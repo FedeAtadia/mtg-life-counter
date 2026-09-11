@@ -38,6 +38,27 @@ export function openSettings(): HTMLElement {
     .parentElement!.parentElement as HTMLElement;
 }
 
+/** The reset button in the hub's row (RESET-5). */
+export const resetButton = () =>
+  screen.getByRole("button", { name: "Reset the game" });
+
+/** The panel that asks before anything is reset (RESET-1), or null. */
+export const resetPanel = () =>
+  screen.queryByRole("dialog", { name: "Reset the game?" });
+
+/** Answers the reset panel that is up. */
+export function answerReset(answer: "Reset" | "Cancel") {
+  const panel = resetPanel();
+  if (!panel) throw new Error("no reset panel is open");
+  fireEvent.click(within(panel).getByRole("button", { name: answer }));
+}
+
+/** The whole reset, from settings: the sheet's button, then the panel. */
+export function resetFromSettings(sheet: HTMLElement) {
+  fireEvent.click(within(sheet).getByText(/Reset game/));
+  answerReset("Reset");
+}
+
 /** The panel for one seat, found by the name on its type line. */
 export function panelFor(name: string): HTMLElement {
   const zone = screen.getByLabelText(

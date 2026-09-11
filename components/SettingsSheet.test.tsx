@@ -3,7 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createGame } from "@/lib/gameReducer";
 import { MAX_NAME_LENGTH } from "@/lib/rules";
 import { startedTimerAt } from "@/lib/timer";
-import { hub, lifeOn, openSettings, panelFor, renderBoard } from "../test/harness";
+import {
+  answerReset,
+  hub,
+  lifeOn,
+  openSettings,
+  panelFor,
+  renderBoard,
+  resetFromSettings,
+  resetPanel,
+} from "../test/harness";
 import { removeServiceWorker, stubServiceWorker } from "../test/serviceWorker";
 import { removeWakeLock, stubWakeLock } from "../test/wakeLock";
 
@@ -340,7 +349,19 @@ describe("music", () => {
 });
 
 describe("resetting the game", () => {
-  it("warns on the first tap and wipes on the second", () => {
+  it("still offers reset at the bottom of settings (RESET-5)", () => {
+    // The hub's row has a reset button now, but it is a second way in rather
+    // than a move. Whoever goes looking for it where it has always been should
+    // still find it there.
+    renderBoard(createGame("commander", 2));
+    const sheet = openSettings();
+
+    expect(
+      within(sheet).getByText("Reset game (40 life, no damage)"),
+    ).toBeInTheDocument();
+  });
+
+  it("asks on the panel before wiping anything (RESET-1)", () => {
     renderBoard(createGame("commander", 2));
     const panel = panelFor("Player 1");
     fireEvent.pointerDown(within(panel).getByLabelText(/lose life/));
@@ -349,13 +370,32 @@ describe("resetting the game", () => {
 
     const sheet = openSettings();
     fireEvent.click(within(sheet).getByText(/Reset game/));
+    expect(resetPanel()).toBeInTheDocument();
     expect(lifeOn(panelFor("Player 1"))).toBe(39);
 
-    fireEvent.click(within(sheet).getByText(/Tap again to reset/));
+    answerReset("Reset");
 
     expect(lifeOn(panelFor("Player 1"))).toBe(40);
-    // And it closes itself, because the game has started over.
+    // And it closes itself, because the game has started over (RESET-4).
+    expect(resetPanel()).not.toBeInTheDocument();
     expect(sheetOpen()).toBe(false);
+  });
+
+  it("goes back to settings when the reset is cancelled (RESET-4)", () => {
+    // Somebody who opened settings to do something and changed their mind
+    // about the reset is still in the middle of doing that something.
+    renderBoard(createGame("commander", 2));
+    const panel = panelFor("Player 1");
+    fireEvent.pointerDown(within(panel).getByLabelText(/lose life/));
+    fireEvent.pointerUp(within(panel).getByLabelText(/lose life/));
+
+    const sheet = openSettings();
+    fireEvent.click(within(sheet).getByText(/Reset game/));
+    answerReset("Cancel");
+
+    expect(resetPanel()).not.toBeInTheDocument();
+    expect(sheetOpen()).toBe(true);
+    expect(lifeOn(panelFor("Player 1"))).toBe(39);
   });
 
   it("keeps names and colours, which are not part of a life total", () => {
@@ -366,8 +406,7 @@ describe("resetting the game", () => {
     });
     fireEvent.click(within(colourGroup(sheet, "Player 1")).getByLabelText("Red"));
 
-    fireEvent.click(within(sheet).getByText(/Reset game/));
-    fireEvent.click(within(sheet).getByText(/Tap again to reset/));
+    resetFromSettings(sheet);
 
     expect(within(panelFor("Fede")).getByText("Fede")).toBeInTheDocument();
     sheet = openSettings();
@@ -383,9 +422,7 @@ describe("resetting the game", () => {
     act(() => vi.advanceTimersByTime(90_000));
     expect(hub()).toHaveAccessibleName("Game settings. Elapsed 1:30");
 
-    const sheet = openSettings();
-    fireEvent.click(within(sheet).getByText(/Reset game/));
-    fireEvent.click(within(sheet).getByText(/Tap again to reset/));
+    resetFromSettings(openSettings());
 
     // And it stays there: the next game starts when the table is ready.
     act(() => vi.advanceTimersByTime(60_000));

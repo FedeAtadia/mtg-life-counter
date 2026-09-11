@@ -3,7 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createGame } from "@/lib/gameReducer";
 import { HUB_TRACK, SEAT_LAYOUTS } from "@/lib/seatLayout";
 import { startedTimerAt } from "@/lib/timer";
-import { hub, openSettings, renderBoard } from "../test/harness";
+import {
+  hub,
+  openSettings,
+  renderBoard,
+  resetFromSettings,
+} from "../test/harness";
 
 const T0 = 1_700_000_000_000;
 
@@ -64,8 +69,7 @@ describe("starting the game (TIMER-7)", () => {
     act(() => vi.advanceTimersByTime(90_000));
 
     const sheet = openSettings();
-    fireEvent.click(within(sheet).getByText(/Reset game/));
-    fireEvent.click(within(sheet).getByText(/Tap again to reset/));
+    resetFromSettings(sheet);
 
     expect(startButton()).toBeInTheDocument();
     act(() => vi.advanceTimersByTime(30_000));
@@ -73,7 +77,6 @@ describe("starting the game (TIMER-7)", () => {
       "Game settings. Elapsed 0:00, not started",
     );
   });
-
 });
 
 describe("where the hub sits (SEAT-7, TIMER-9)", () => {
@@ -158,8 +161,7 @@ describe("one depth for the whole game (SEAT-9)", () => {
     fireEvent.click(within(sheet).getByText("Pause"));
     expect(rows()).toBe(before);
 
-    fireEvent.click(within(sheet).getByText(/Reset game/));
-    fireEvent.click(within(sheet).getByText(/Tap again to reset/));
+    resetFromSettings(sheet);
     expect(startButton()).toBeInTheDocument();
     expect(rows()).toBe(before);
   });

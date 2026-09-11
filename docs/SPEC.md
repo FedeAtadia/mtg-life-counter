@@ -301,15 +301,24 @@ Covered by `lib/timer.test.ts`, `lib/useElapsed.test.ts`,
 
 ## RESET — Starting over
 
-*Enforced by `lib/gameReducer.ts`, `components/SettingsSheet.tsx`. Covered by
-`lib/gameReducer.test.ts`, `components/SettingsSheet.test.tsx`.*
+*Enforced by `lib/gameReducer.ts`, `components/ConfirmReset.tsx`,
+`components/CenterHub.tsx`, `components/SettingsSheet.tsx`. Covered by
+`lib/gameReducer.test.ts`, `components/ConfirmReset.test.tsx`,
+`components/SettingsSheet.test.tsx`.*
 
-- **RESET-1** Reset takes two taps, like a format change.
+- **RESET-1** Reset asks first, on a panel that says what it will do, with
+  Reset and Cancel. Cancel — or a press anywhere outside the panel — changes
+  nothing. A format change still takes two taps (FMT-5); it is a different
+  action and says so in its own words.
 - **RESET-2** It restores starting life, clears all commander damage and puts
   the clock back to zero, waiting to be started again (TIMER-5).
 - **RESET-3** It keeps the seats, the names and the colour identities — those
   are not part of a life total.
 - **RESET-4** It closes the settings sheet, because the game has started over.
+  Cancelling a reset started from settings goes back to settings.
+- **RESET-5** Reset is one press away in the hub's row for the whole game, as
+  well as at the bottom of settings where it has always been. Both open the
+  same panel: one destructive action, one way of confirming it.
 
 ## STATE — Shape and purity
 

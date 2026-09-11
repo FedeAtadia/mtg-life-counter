@@ -24,11 +24,25 @@ import { useGame } from "@/lib/useGame";
  * The tick lives here rather than in GameBoard so that a second passing
  * re-renders this pill alone, not all six player panels.
  */
+/**
+ * The round buttons at the clock's far side.
+ *
+ * 40px, which is under the 44px the rest of the app holds as a floor — but the
+ * row is only 44px deep, and these are already the tallest things in it (the
+ * clock is 28px, Start 38px). Deepening the row to clear 44px would take height
+ * off every card for the whole game.
+ */
+const ROUND_BUTTON =
+  "flex size-10 shrink-0 items-center justify-center rounded-full border border-[#33334a] bg-[#14141c] text-white/75 shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:bg-[#1d1d28]";
+
 export default function CenterHub({
   onClick,
+  onReset,
   gridArea,
 }: {
   onClick: () => void;
+  /** Asks for a reset; the board's panel confirms it (RESET-1, RESET-5). */
+  onReset: () => void;
   gridArea: string;
 }) {
   const { state, dispatch } = useGame();
@@ -100,7 +114,29 @@ export default function CenterHub({
         </span>
       </button>
 
-      <div className="flex min-w-0 justify-start" />
+      <div className="flex min-w-0 justify-start gap-2">
+        <button
+          type="button"
+          onClick={onReset}
+          aria-label="Reset the game"
+          className={ROUND_BUTTON}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 12a9 9 0 1 0 3-6.7" />
+            <path d="M3 4v5h5" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import CenterHub from "./CenterHub";
 import CommanderDamageOverlay from "./CommanderDamageOverlay";
+import ConfirmReset from "./ConfirmReset";
 import PlayerSeat from "./PlayerSeat";
 import SettingsSheet from "./SettingsSheet";
 import { layoutFor } from "@/lib/seatLayout";
@@ -12,9 +13,11 @@ import { useWakeLock } from "@/lib/useWakeLock";
 import type { PlayerId } from "@/lib/types";
 
 export default function GameBoard() {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [damageOpenFor, setDamageOpenFor] = useState<PlayerId | null>(null);
+  // Asked for from the hub or from settings; answered in one place (RESET-5).
+  const [resetAsked, setResetAsked] = useState(false);
   // Held here rather than in the sheet: the screen has to stay lit while the
   // board is being played, not only while settings happen to be open.
   const wakeLock = useWakeLock();
@@ -61,6 +64,7 @@ export default function GameBoard() {
 
       <CenterHub
         onClick={() => setSettingsOpen(true)}
+        onReset={() => setResetAsked(true)}
         gridArea={layout.hubArea}
       />
 
@@ -80,7 +84,22 @@ export default function GameBoard() {
         <SettingsSheet
           wakeLock={wakeLock}
           offline={offline}
+          onReset={() => setResetAsked(true)}
           onClose={() => setSettingsOpen(false)}
+        />
+      )}
+
+      {/* Above settings, so a reset asked for there can be cancelled back
+          into it; a reset that goes ahead closes both (RESET-4). */}
+      {resetAsked && (
+        <ConfirmReset
+          format={state.format}
+          onCancel={() => setResetAsked(false)}
+          onReset={() => {
+            dispatch({ type: "RESET_GAME" });
+            setResetAsked(false);
+            setSettingsOpen(false);
+          }}
         />
       )}
     </main>
