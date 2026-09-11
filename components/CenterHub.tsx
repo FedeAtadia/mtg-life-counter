@@ -29,9 +29,9 @@ import { useGame } from "@/lib/useGame";
  * The round buttons at the clock's far side.
  *
  * 40px, which is under the 44px the rest of the app holds as a floor — but the
- * row is only 44px deep, and these are already the tallest things in it (the
- * clock is 28px, Start 38px). Deepening the row to clear 44px would take height
- * off every card for the whole game.
+ * row is only 44px deep, and 40px is the most it can hold with any band left
+ * around it. The clock pod matches it; Start is 38px. Deepening the row to
+ * clear 44px would take height off every card for the whole game.
  */
 const ROUND_BUTTON =
   "flex size-10 shrink-0 items-center justify-center rounded-full border border-[#33334a] bg-[#14141c] text-white/75 shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:bg-[#1d1d28]";
@@ -89,11 +89,13 @@ export default function CenterHub({
         aria-label={`Game settings. Elapsed ${formatElapsed(
           elapsed,
         )}${clockNote}`}
-        className="flex items-center gap-1.5 rounded-full border border-[#33334a] bg-[#14141c] py-1.5 pr-3 pl-2.5 text-white/75 shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:bg-[#1d1d28]"
+        // The same 40px as the round buttons beside it, so the row reads as one
+        // set of controls rather than a clock with buttons hung off it.
+        className="flex h-10 items-center gap-2 rounded-full border border-[#33334a] bg-[#14141c] pr-4 pl-3 text-white/75 shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:bg-[#1d1d28]"
       >
         <svg
-          width="14"
-          height="14"
+          width="16"
+          height="16"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -108,7 +110,7 @@ export default function CenterHub({
         </svg>
 
         <span
-          className="tnum text-sm leading-none font-semibold"
+          className="tnum text-base leading-none font-semibold"
           style={{ opacity: running ? 1 : 0.45 }}
         >
           {formatElapsed(elapsed)}
