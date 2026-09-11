@@ -3,23 +3,21 @@
 import { useState } from "react";
 import CenterHub from "./CenterHub";
 import CommanderDamageOverlay from "./CommanderDamageOverlay";
+import ConfirmReset from "./ConfirmReset";
 import PlayerSeat from "./PlayerSeat";
 import SettingsSheet from "./SettingsSheet";
-import {
-  HUB_TRACK,
-  HUB_TRACK_RUNNING,
-  layoutFor,
-} from "@/lib/seatLayout";
-import { hasStarted } from "@/lib/timer";
+import { layoutFor } from "@/lib/seatLayout";
 import { useGame } from "@/lib/useGame";
 import { useServiceWorker } from "@/lib/useServiceWorker";
 import { useWakeLock } from "@/lib/useWakeLock";
 import type { PlayerId } from "@/lib/types";
 
 export default function GameBoard() {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [damageOpenFor, setDamageOpenFor] = useState<PlayerId | null>(null);
+  // Asked for from the hub or from settings; answered in one place (RESET-5).
+  const [resetAsked, setResetAsked] = useState(false);
   // Held here rather than in the sheet: the screen has to stay lit while the
   // board is being played, not only while settings happen to be open.
   const wakeLock = useWakeLock();
@@ -28,12 +26,6 @@ export default function GameBoard() {
   const offline = useServiceWorker();
 
   const layout = layoutFor(state.players.length);
-
-  // How deep the hub's band has to be (SEAT-9). Read off the same predicate
-  // that decides whether the Start button is drawn at all (TIMER-7), because
-  // a band sized for a button that is not there — or, worse, not sized for one
-  // that is — is the one way these two can disagree.
-  const hubTrack = hasStarted(state.timer) ? HUB_TRACK_RUNNING : HUB_TRACK;
 
   // Derived rather than synced: if the player whose damage panel was open has
   // since left the game — or the format changed out from under it — the stored
@@ -50,8 +42,6 @@ export default function GameBoard() {
       style={{
         gridTemplateRows: layout.rows,
         gridTemplateColumns: layout.cols,
-        // Both templates name this, and only the hub's track uses it.
-        ["--hub-track" as string]: hubTrack,
         gap: "4px",
         paddingTop: "max(4px, env(safe-area-inset-top))",
         paddingBottom: "max(4px, env(safe-area-inset-bottom))",
@@ -74,7 +64,7 @@ export default function GameBoard() {
 
       <CenterHub
         onClick={() => setSettingsOpen(true)}
-        rotation={layout.hubRotation}
+        onReset={() => setResetAsked(true)}
         gridArea={layout.hubArea}
       />
 
@@ -94,7 +84,22 @@ export default function GameBoard() {
         <SettingsSheet
           wakeLock={wakeLock}
           offline={offline}
+          onReset={() => setResetAsked(true)}
           onClose={() => setSettingsOpen(false)}
+        />
+      )}
+
+      {/* Above settings, so a reset asked for there can be cancelled back
+          into it; a reset that goes ahead closes both (RESET-4). */}
+      {resetAsked && (
+        <ConfirmReset
+          format={state.format}
+          onCancel={() => setResetAsked(false)}
+          onReset={() => {
+            dispatch({ type: "RESET_GAME" });
+            setResetAsked(false);
+            setSettingsOpen(false);
+          }}
         />
       )}
     </main>

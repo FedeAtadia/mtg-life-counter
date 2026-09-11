@@ -1,47 +1,49 @@
 "use client";
 
+import DiceButton from "./DiceButton";
 import { formatElapsed, hasStarted, isRunning } from "@/lib/timer";
 import { useElapsed } from "@/lib/useElapsed";
 import { useGame } from "@/lib/useGame";
-import type { Rotation } from "@/lib/seatLayout";
 
 /**
- * How far the Start button sits from the clock, along the hub track.
+ * Settings entry point and game clock, in a row of the board's own across its
+ * full width (SEAT-7), with the Start button beside the clock until the game is
+ * under way (TIMER-7).
  *
- * Along it, never across it: the track is only deep enough for one pill, and
- * anything pushed across it is back over somebody's card, which is the whole
- * thing this track exists to stop (SEAT-7). Because the offset is applied in
- * the hub's own frame, one value serves both — it reads as sideways where the
- * band lies across the board and as above where it runs down it.
+ * The row is three columns: two equal sides and the clock between them. Equal
+ * sides are what put the clock at the exact centre of the board whatever the
+ * sides are holding (TIMER-9) — Start leaving, or anything else arriving, never
+ * moves it. The side cells always render, even empty, so the clock is always
+ * the middle one.
  *
- * Half the clock plus half the button plus a thumb's width between them.
- */
-const START_OFFSET = "-6rem";
-
-/**
- * Settings entry point and game clock, in a band of the board's own between the
- * seats (SEAT-7), with the Start button beside it until the game is under way
- * (TIMER-7).
- *
- * It used to float over the seam on top of whatever was underneath, which on a
- * card with a text box means sitting on somebody's damage. Now the band is a
- * real grid track and nothing overlaps.
- *
- * Both controls are laid in the same grid cell and moved by transform alone, so
- * the clock keeps the exact centre whether or not Start is there (TIMER-9): the
- * control that is present all game is not shifted by the one that leaves after
- * a few seconds.
+ * This used to be done with transforms off a shared centre point, because the
+ * hub turned a quarter at five and six players and a turned track sized itself
+ * to its widest control and spilled over a card. It is never turned now
+ * (SEAT-3, retired), and in a row that runs the width of the board layout does
+ * the job without the arithmetic.
  *
  * The tick lives here rather than in GameBoard so that a second passing
  * re-renders this pill alone, not all six player panels.
  */
+/**
+ * The round buttons at the clock's far side.
+ *
+ * 40px, which is under the 44px the rest of the app holds as a floor — but the
+ * row is only 44px deep, and 40px is the most it can hold with any band left
+ * around it. The clock pod matches it; Start is 38px. Deepening the row to
+ * clear 44px would take height off every card for the whole game.
+ */
+const ROUND_BUTTON =
+  "flex size-10 shrink-0 items-center justify-center rounded-full border border-[#33334a] bg-[#14141c] text-white/75 shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:bg-[#1d1d28]";
+
 export default function CenterHub({
   onClick,
-  rotation,
+  onReset,
   gridArea,
 }: {
   onClick: () => void;
-  rotation: Rotation;
+  /** Asks for a reset; the board's panel confirms it (RESET-1, RESET-5). */
+  onReset: () => void;
   gridArea: string;
 }) {
   const { state, dispatch } = useGame();
@@ -54,38 +56,32 @@ export default function CenterHub({
   const clockNote = running ? "" : started ? ", paused" : ", not started";
 
   return (
-    // Both controls are anchored to the centre of this cell and moved by
-    // transform alone. Centring them by layout instead does not survive the
-    // turned band: the track sizes itself to the widest control, which is wider
-    // than a band only deep enough for one pill, so it overflows to one side
-    // and takes both controls out over a card with it — the exact thing the
-    // band is here to prevent.
-    <div className="relative z-30" style={{ gridArea }}>
-      {!started && (
-        <button
-          type="button"
-          onClick={() => dispatch({ type: "RESUME_TIMER", at: Date.now() })}
-          aria-label="Start the game clock"
-          className="absolute top-1/2 left-1/2 flex items-center gap-2 rounded-full border border-[var(--metal)] bg-[var(--parchment-bg)] px-4 py-2 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] whitespace-nowrap text-[var(--parchment)] uppercase shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:brightness-125"
-          style={{
-            // Centred on the band, then turned, then moved — so the offset runs
-            // along the band as the player reading the button sees it.
-            transform: `translate(-50%, -50%) rotate(${rotation}deg) translateX(${START_OFFSET})`,
-          }}
-        >
-          <svg
-            width="11"
-            height="13"
-            viewBox="0 0 11 13"
-            fill="currentColor"
-            className="shrink-0"
-            aria-hidden="true"
+    <div
+      className="grid min-w-0 items-center gap-2 px-1"
+      style={{ gridArea, gridTemplateColumns: "1fr auto 1fr" }}
+    >
+      <div className="flex min-w-0 justify-end">
+        {!started && (
+          <button
+            type="button"
+            onClick={() => dispatch({ type: "RESUME_TIMER", at: Date.now() })}
+            aria-label="Start the game clock"
+            className="flex items-center gap-2 rounded-full border border-[var(--metal)] bg-[var(--parchment-bg)] px-4 py-2 font-[family-name:var(--font-display)] text-[13px] font-semibold tracking-[0.14em] whitespace-nowrap text-[var(--parchment)] uppercase shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:brightness-125"
           >
-            <path d="M1 1.1v10.8a.6.6 0 0 0 .92.5l8.4-5.4a.6.6 0 0 0 0-1L1.92.6A.6.6 0 0 0 1 1.1Z" />
-          </svg>
-          Start
-        </button>
-      )}
+            <svg
+              width="11"
+              height="13"
+              viewBox="0 0 11 13"
+              fill="currentColor"
+              className="shrink-0"
+              aria-hidden="true"
+            >
+              <path d="M1 1.1v10.8a.6.6 0 0 0 .92.5l8.4-5.4a.6.6 0 0 0 0-1L1.92.6A.6.6 0 0 0 1 1.1Z" />
+            </svg>
+            Start
+          </button>
+        )}
+      </div>
 
       <button
         type="button"
@@ -93,12 +89,13 @@ export default function CenterHub({
         aria-label={`Game settings. Elapsed ${formatElapsed(
           elapsed,
         )}${clockNote}`}
-        className="absolute top-1/2 left-1/2 flex items-center gap-1.5 rounded-full border border-[#33334a] bg-[#14141c] py-1.5 pr-3 pl-2.5 text-white/75 shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:bg-[#1d1d28]"
-        style={{ transform: `translate(-50%, -50%) rotate(${rotation}deg)` }}
+        // The same 40px as the round buttons beside it, so the row reads as one
+        // set of controls rather than a clock with buttons hung off it.
+        className="flex h-10 items-center gap-2 rounded-full border border-[#33334a] bg-[#14141c] pr-4 pl-3 text-white/75 shadow-[0_2px_12px_rgba(0,0,0,0.6)] active:scale-95 active:bg-[#1d1d28]"
       >
         <svg
-          width="14"
-          height="14"
+          width="16"
+          height="16"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -113,12 +110,37 @@ export default function CenterHub({
         </svg>
 
         <span
-          className="tnum text-sm leading-none font-semibold"
+          className="tnum text-base leading-none font-semibold"
           style={{ opacity: running ? 1 : 0.45 }}
         >
           {formatElapsed(elapsed)}
         </span>
       </button>
+
+      <div className="flex min-w-0 justify-start gap-2">
+        <DiceButton className={ROUND_BUTTON} />
+        <button
+          type="button"
+          onClick={onReset}
+          aria-label="Reset the game"
+          className={ROUND_BUTTON}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 12a9 9 0 1 0 3-6.7" />
+            <path d="M3 4v5h5" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

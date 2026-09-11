@@ -52,8 +52,9 @@ const OFFLINE_NOTE: Record<ServiceWorkerStatus, string> = {
 };
 
 /**
- * Anything that wipes life totals takes two taps: the first arms it, the second
- * commits. Auto-disarms so a stray tap can't linger.
+ * A format change takes two taps: the first arms it, the second commits
+ * (FMT-5). Auto-disarms so a stray tap can't linger. Reset used to share this;
+ * it confirms on its own panel now (RESET-1).
  */
 function useArmedAction(timeoutMs = 3500) {
   const [armed, setArmed] = useState<string | null>(null);
@@ -68,10 +69,13 @@ function useArmedAction(timeoutMs = 3500) {
 export default function SettingsSheet({
   wakeLock,
   offline,
+  onReset,
   onClose,
 }: {
   wakeLock: WakeLockStatus;
   offline: ServiceWorkerStatus;
+  /** Asks for a reset; the board's panel confirms it (RESET-5). */
+  onReset: () => void;
   onClose: () => void;
 }) {
   const { state, dispatch } = useGame();
@@ -90,16 +94,6 @@ export default function SettingsSheet({
     }
     dispatch({ type: "SET_FORMAT", format });
     setArmed(null);
-  };
-
-  const resetGame = () => {
-    if (armed !== "reset") {
-      setArmed("reset");
-      return;
-    }
-    dispatch({ type: "RESET_GAME" });
-    setArmed(null);
-    onClose();
   };
 
   return (
@@ -311,18 +305,14 @@ export default function SettingsSheet({
           {OFFLINE_NOTE[offline]}
         </p>
 
+        {/* Still here, where it has always been (RESET-5). It asks on the
+            board's panel rather than arming itself (RESET-1). */}
         <button
           type="button"
-          onClick={() => resetGame()}
-          className={`rounded-xl border px-3 py-3 text-sm font-semibold transition-colors ${
-            armed === "reset"
-              ? "border-[var(--danger)] bg-[var(--danger)]/20 text-white"
-              : "border-[var(--border)] bg-[var(--surface-2)] text-white/80"
-          }`}
+          onClick={onReset}
+          className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-3 text-sm font-semibold text-white/80 active:bg-white/10"
         >
-          {armed === "reset"
-            ? "Tap again to reset the game"
-            : `Reset game (${startingLifeFor(state.format)} life, no damage)`}
+          {`Reset game (${startingLifeFor(state.format)} life, no damage)`}
         </button>
       </div>
     </div>

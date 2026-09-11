@@ -1,13 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_PLAYERS, MIN_PLAYERS } from "./rules";
-import {
-  HUB_TRACK,
-  HUB_TRACK_RUNNING,
-  HUB_TRACK_VAR,
-  SEAT_LAYOUTS,
-  layoutFor,
-  upVectorFor,
-} from "./seatLayout";
+import { HUB_TRACK, SEAT_LAYOUTS, layoutFor, upVectorFor } from "./seatLayout";
 import type { Rotation } from "./seatLayout";
 
 const counts = Array.from(
@@ -71,74 +64,109 @@ describe("seat layouts", () => {
     },
   );
 
-  it("seats four, five and six player games down the left and right edges", () => {
-    for (const count of [4, 5, 6]) {
-      const layout = SEAT_LAYOUTS[count];
-      const lastCol = Math.max(
-        ...layout.seats.map((s) => parseArea(s.gridArea).colStart),
-      );
-      // Two columns of seats, whatever sits between them: at five and six that
-      // is the hub's own track (SEAT-7), which is why this reads the columns
-      // the seats actually landed in rather than the template.
-      expect(new Set(layout.seats.map((s) => parseArea(s.gridArea).colStart)))
-        .toEqual(new Set([1, lastCol]));
-      for (const seat of layout.seats) {
-        const { colStart } = parseArea(seat.gridArea);
-        // A seat points its text away from the edge that player sits at: the
-        // left column reads rightwards, the right column reads leftwards.
-        expect(seat.rotation).toBe(colStart === 1 ? 90 : -90);
-      }
+  /**
+   * Every seat that sits in one column, pointing its text away from its edge:
+   * the left column reads rightwards, the right column reads leftwards.
+   */
+  function expectDownTheEdges(seats: typeof SEAT_LAYOUTS[number]["seats"]) {
+    for (const seat of seats) {
+      const { colStart, colEnd } = parseArea(seat.gridArea);
+      expect(colEnd - colStart).toBe(1);
+      expect(seat.rotation).toBe(colStart === 1 ? 90 : -90);
+    }
+  }
+
+  it("seats four and six player games down the left and right edges", () => {
+    for (const count of [4, 6]) {
+      expectDownTheEdges(SEAT_LAYOUTS[count].seats);
     }
   });
 
-  describe("the hub's own track (SEAT-7)", () => {
-    it("lies across the board where the seats are stacked, and down it where they are side by side", () => {
-      // Which way the band runs is the same question as which way the hub is
-      // turned, so the two are read off each other rather than listed twice.
-      for (const count of counts) {
+  it("seats five as a block of four and one wide seat on the near edge (SEAT-10)", () => {
+    // Three down one side and two down the other share no horizontal seam, so
+    // no row could cross the board between them. The odd player gets the whole
+    // near edge, as the third player does at three.
+    const [near, ...rest] = SEAT_LAYOUTS[5].seats;
+    const area = parseArea(near.gridArea);
+    const lastRow = Math.max(
+      ...SEAT_LAYOUTS[5].seats.map((s) => parseArea(s.gridArea).rowEnd),
+    );
+
+    expect(near.rotation).toBe(0);
+    expect(area.rowEnd).toBe(lastRow);
+    expect([area.colStart, area.colEnd]).toEqual([1, 3]);
+    expectDownTheEdges(rest);
+  });
+
+  it("starts every table at the near edge, so seat order is table order", () => {
+    // Seat index is player index. Whoever is first in the roster sits nearest
+    // the phone's bottom edge, at every count — re-seating five must not
+    // quietly move Player 1 to the far end.
+    for (const count of counts) {
+      const first = parseArea(SEAT_LAYOUTS[count].seats[0].gridArea);
+      const lastRow = Math.max(
+        ...SEAT_LAYOUTS[count].seats.map((s) => parseArea(s.gridArea).rowEnd),
+      );
+      expect(first.rowEnd).toBe(lastRow);
+      expect(first.colStart).toBe(1);
+    }
+  });
+
+  describe("the hub's own row (SEAT-7)", () => {
+    it.each(counts)(
+      "lies across the full width of the board (%i players)",
+      (count) => {
+        // One row deep and every column wide. A hub one column short of the
+        // edge leaves a seat beside it, and that seat's corner is exactly where
+        // the controls at the end of the row would land.
         const layout = SEAT_LAYOUTS[count];
         const hub = parseArea(layout.hubArea);
-        const spansWidth = hub.colEnd - hub.colStart;
-        const spansHeight = hub.rowEnd - hub.rowStart;
+        const columns = layout.cols.split(" ").length;
 
-        if (layout.hubRotation === 0) {
-          // A row: one track tall, the full width of the board.
-          expect(spansHeight).toBe(1);
-          expect(spansWidth).toBeGreaterThan(0);
-        } else {
-          // A column: one track wide, the full height.
-          expect(spansWidth).toBe(1);
-          expect(spansHeight).toBeGreaterThan(1);
-        }
-      }
-    });
+        expect(hub.rowEnd - hub.rowStart).toBe(1);
+        expect([hub.colStart, hub.colEnd]).toEqual([1, columns + 1]);
+      },
+    );
 
     it("is the only track that is not a share of the board (SEAT-8)", () => {
       // A `fr` track would grow the gap on a bigger screen; the seats should
-      // get that room instead. The depth itself is a custom property, because
-      // it has two values (SEAT-9) and the board picks between them.
+      // get that room instead.
       for (const count of counts) {
         const layout = SEAT_LAYOUTS[count];
-        const template =
-          layout.hubRotation === 0 ? layout.rows : layout.cols;
-        expect(template).toContain(HUB_TRACK_VAR);
-        // Every other track on that axis is a share.
-        const others = template.split(" ").filter((t) => t !== HUB_TRACK_VAR);
-        for (const track of others) {
-          expect(track).toMatch(/fr$/);
+        const rows = layout.rows.split(" ");
+        expect(rows.filter((t) => t === HUB_TRACK)).toHaveLength(1);
+        for (const track of [...rows, ...layout.cols.split(" ")]) {
+          if (track !== HUB_TRACK) expect(track).toMatch(/fr$/);
         }
       }
     });
 
-    it("has one depth for the Start button and a smaller one without it (SEAT-9)", () => {
-      // Both absolute, so neither grows with the screen, and the running one
-      // genuinely smaller — otherwise the space Start needed is never given
-      // back and SEAT-9 buys nothing.
-      const rem = (v: string) => Number.parseFloat(v);
-      for (const value of [HUB_TRACK, HUB_TRACK_RUNNING]) {
-        expect(value).toMatch(/rem$/);
+    it("is one fixed depth, whatever state the game is in (SEAT-9)", () => {
+      // Absolute, so it does not grow with the screen (SEAT-8). And a single
+      // value rather than a choice between two: a depth that changes when the
+      // clock starts moves every card and every control in the row with it.
+      expect(HUB_TRACK).toMatch(/rem$/);
+    });
+
+    it("sits below the second row of seats at five and six (SEAT-11)", () => {
+      // A board three seats deep has no seam across its middle. The lower of
+      // its two keeps the hub nearer whoever is at the near edge.
+      for (const count of [5, 6]) {
+        const layout = SEAT_LAYOUTS[count];
+        const hub = parseArea(layout.hubArea);
+        const above = layout.seats.filter(
+          (s) => parseArea(s.gridArea).rowEnd <= hub.rowStart,
+        );
+        const below = layout.seats.filter(
+          (s) => parseArea(s.gridArea).rowStart >= hub.rowEnd,
+        );
+
+        // Two rows of two above it, and the near edge below.
+        expect(above).toHaveLength(4);
+        expect(below).toHaveLength(count - 4);
+        expect(new Set(above.map((s) => parseArea(s.gridArea).rowStart)))
+          .toEqual(new Set([1, 2]));
       }
-      expect(rem(HUB_TRACK_RUNNING)).toBeLessThan(rem(HUB_TRACK));
     });
   });
 
@@ -165,23 +193,6 @@ describe("seat layouts", () => {
           AWAY_FROM_EDGE[seat.rotation],
         );
       }
-    }
-  });
-
-  it.each(counts)("gives the hub a quarter turn at most (%i players)", (n) => {
-    expect([0, 90, 180, -90]).toContain(SEAT_LAYOUTS[n].hubRotation);
-  });
-
-  it("turns the hub only where seats flank the centre", () => {
-    // At five and six a seat occupies the middle of each column, so the centre
-    // lands on their inner edge — exactly where their names run. Turning the
-    // hub keeps it in the seam instead of lying across both names. At every
-    // other count the centre falls on a corner or a seam between rows, and an
-    // upright hub reads better.
-    expect(SEAT_LAYOUTS[5].hubRotation).toBe(90);
-    expect(SEAT_LAYOUTS[6].hubRotation).toBe(90);
-    for (const count of [2, 3, 4]) {
-      expect(SEAT_LAYOUTS[count].hubRotation).toBe(0);
     }
   });
 
