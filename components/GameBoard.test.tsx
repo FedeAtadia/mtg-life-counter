@@ -66,18 +66,16 @@ describe("seating the table", () => {
     expect(board().style.gridTemplateRows).toBe(SEAT_LAYOUTS[3].rows);
   });
 
-  it("turns the hub out of the way where seats flank the centre", () => {
-    // At five and six the two middle seats put their names on the centre seam,
-    // so a hub lying across it would cover them.
-    renderBoard(createGame("commander", 6));
+  it.each(counts)("never turns the hub (%i players)", (count) => {
+    // It has a full-width row of its own at every count (SEAT-7), which lies
+    // across nobody's name, so the quarter turn it used to take at five and
+    // six has nothing left to avoid (SEAT-3, retired).
+    renderBoard(createGame("commander", count));
 
-    expect(hub().style.transform).toContain("rotate(90deg)");
-  });
-
-  it("leaves the hub square where the seats meet at a corner", () => {
-    renderBoard(createGame("commander", 4));
-
-    expect(hub().style.transform).toContain("rotate(0deg)");
+    expect(hub().style.transform).not.toContain("rotate");
+    expect(hub().parentElement).toHaveStyle({
+      gridArea: SEAT_LAYOUTS[count].hubArea,
+    });
   });
 });
 
