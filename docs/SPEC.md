@@ -210,30 +210,39 @@ Covered by `lib/gameReducer.test.ts`, `lib/rules.test.ts`,
 
 ## SEAT — Board layout
 
-*Enforced by `lib/seatLayout.ts`, `components/PlayerSeat.tsx`. Covered by
-`lib/seatLayout.test.ts`, `components/GameBoard.test.tsx`.*
+*Enforced by `lib/seatLayout.ts`, `components/PlayerSeat.tsx`,
+`components/CenterHub.tsx`. Covered by `lib/seatLayout.test.ts`,
+`components/GameBoard.test.tsx`, `components/CenterHub.test.tsx`.*
 
 - **SEAT-1** Each seat is rotated so its text reads upright for the player on
   that edge of the device: near edge 0°, far edge 180°, left 90°, right −90°.
 - **SEAT-2** The layout is derived from the player count, never stored beside
   it, and uses quarter turns only.
-- **SEAT-3** At five and six players the hub turns a quarter, because the two
-  middle seats put their names on the centre seam.
+- **SEAT-3** *Retired.* The hub used to turn a quarter at five and six players,
+  because it floated over the centre seam and would otherwise lie across the
+  two middle names. It has its own row now at every count (SEAT-7), which
+  covers nothing, so there is nothing left to turn it away from.
 - **SEAT-4** An unsupported player count falls back to a real layout rather
   than rendering nothing.
 - **SEAT-5** A rotated panel is authored with its width and height swapped, in
   CSS alone — no measuring and no resize observers.
 - **SEAT-6** A seat and the slide gesture take their sense of “up” from one
   function, so the two can never disagree about which way a player is facing.
-- **SEAT-7** The centre hub sits in a track of its own between the seats — a
-  row at two, three and four players, a column at five and six — so nothing is
-  ever drawn over a card. Seats and hub together tile the board exactly once.
+- **SEAT-7** The centre hub sits in a row of its own across the full width of
+  the board, at every player count, so nothing is ever drawn over a card. Seats
+  and hub together tile the board exactly once.
+- **SEAT-10** Five players sit as four quarter-turned seats in a block at the
+  far end and one wide seat along the near edge — the shape three players
+  already use. Three seats down one side and two down the other share no
+  horizontal seam, so no row could cross the board between them.
+- **SEAT-11** At five and six the hub's row sits below the second row of seats
+  rather than at the middle. There is no seam across the middle of a board
+  three seats deep; the lower one keeps the hub nearer the near edge.
 - **SEAT-8** That track is a fixed size rather than a share of the board, so a
   larger screen gives its extra room to the seats and not to the gap.
-- **SEAT-9** It is only as deep as what it is holding: enough for the Start
-  button and the clock side by side before a game begins, and enough for the
-  clock alone once one is under way (TIMER-7). The room Start needed goes back
-  to the seats the moment it is no longer needed, which is most of a game.
+- **SEAT-9** It is one depth for the whole game. Nothing in it resizes, and no
+  card grows or shrinks, when the clock starts or a game is reset — the
+  controls in the row stay exactly where a hand last found them.
 
 ## TIMER — The game clock
 
@@ -257,16 +266,50 @@ Covered by `lib/timer.test.ts`, `lib/useElapsed.test.ts`,
 - **TIMER-6** The readout repaints once a second, and only every 15 seconds
   once the seconds are hidden. A stopped clock schedules nothing.
 - **TIMER-7** A clock that has never run — zero on the readout, and stopped —
-  carries a Start button at the centre of the board. Starting it is what takes
-  the button away: a game already under way has no use for it.
+  carries a Start button in the hub, beside the clock. Starting it is what
+  takes the button away: a game already under way has no use for it.
 - **TIMER-8** The one timer control in settings reads Start before the clock
   has ever run, Pause while it is running, and Resume once there is time
   banked.
 - **TIMER-9** The clock keeps the centre of the hub's track whether or not the
   Start button is beside it. Start is there for the first few seconds of a
   game; the clock is there for all of it, and the thing that stays is never
-  displaced along the band by the thing that goes. The band itself closing up
-  around it (SEAT-9) is the intended effect, not an exception to this.
+  displaced along the band by the thing that goes — nor by anything else the
+  band holds, however many things that is.
+
+## ROLL — Dice and a coin
+
+*Enforced by `lib/dice.ts`, `lib/useLongPress.ts`, `components/DiceButton.tsx`,
+`components/DicePicker.tsx`, `components/RollResult.tsx`. Covered by
+`lib/dice.test.ts`, `lib/useLongPress.test.tsx`,
+`components/DiceButton.test.tsx`.*
+
+The first thing in the app that is random, and the first press that means
+something by waiting. Both are fenced off from the rest: randomness never
+reaches a render or the reducer, and a wait means something only on this one
+button — the life and damage sliders still take no notice of time at all
+(HOLD-2), because there travel is the input and here there is no travel that
+could mean anything.
+
+- **ROLL-1** One button in the hub's row throws a d4, d6, d8, d10, d12 or d20,
+  or flips a coin. It sits on the clock's far side from Start, so the clock
+  keeps its centre (TIMER-9).
+- **ROLL-2** A tap opens the picker. A press held for 350 ms opens it too, with
+  the finger still down, so sliding onto an option and lifting throws it — a
+  die chosen and thrown in one gesture.
+- **ROLL-3** Lifting a held press anywhere but on an option leaves the picker
+  open, as if it had been tapped open. Nothing is thrown that nobody chose.
+- **ROLL-4** A die of `n` sides lands on a whole number from 1 to `n`, each
+  equally likely; a coin lands heads or tails, each equally likely.
+- **ROLL-5** The result stays up until it is pressed away, however long that
+  takes, and names the die it came off — "17" alone does not settle an
+  argument about which die was thrown.
+- **ROLL-6** The result reads upright from both long edges of the table at
+  once. A throw belongs to no one seat, so it does not face one.
+- **ROLL-7** A throw changes nothing in the game and is not saved. It is not a
+  life total.
+- **ROLL-8** Nothing random is read while rendering — only when an option is
+  chosen — so the prerendered board and the hydrated one agree (PLAT-3).
 
 ## SAVE — Persistence
 
@@ -292,15 +335,24 @@ Covered by `lib/timer.test.ts`, `lib/useElapsed.test.ts`,
 
 ## RESET — Starting over
 
-*Enforced by `lib/gameReducer.ts`, `components/SettingsSheet.tsx`. Covered by
-`lib/gameReducer.test.ts`, `components/SettingsSheet.test.tsx`.*
+*Enforced by `lib/gameReducer.ts`, `components/ConfirmReset.tsx`,
+`components/CenterHub.tsx`, `components/SettingsSheet.tsx`. Covered by
+`lib/gameReducer.test.ts`, `components/ConfirmReset.test.tsx`,
+`components/SettingsSheet.test.tsx`.*
 
-- **RESET-1** Reset takes two taps, like a format change.
+- **RESET-1** Reset asks first, on a panel that says what it will do, with
+  Reset and Cancel. Cancel — or a press anywhere outside the panel — changes
+  nothing. A format change still takes two taps (FMT-5); it is a different
+  action and says so in its own words.
 - **RESET-2** It restores starting life, clears all commander damage and puts
   the clock back to zero, waiting to be started again (TIMER-5).
 - **RESET-3** It keeps the seats, the names and the colour identities — those
   are not part of a life total.
 - **RESET-4** It closes the settings sheet, because the game has started over.
+  Cancelling a reset started from settings goes back to settings.
+- **RESET-5** Reset is one press away in the hub's row for the whole game, as
+  well as at the bottom of settings where it has always been. Both open the
+  same panel: one destructive action, one way of confirming it.
 
 ## STATE — Shape and purity
 
@@ -419,11 +471,16 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   chosen one is legible on a real phone is not, and cannot be here.
 - **That the hub's band holds its controls.** `SEAT-7` is tested as grid
   areas, which is what stops a *card* reaching into the band. Whether the
-  clock and the Start button stay inside it is a question about their rendered
-  widths against a `2.75rem` track, and jsdom lays nothing out. It is checked
-  in a browser by measuring both against the band's own rectangle — and it has
-  already failed once there, when the controls were centred by layout rather
-  than by transform and the track sized itself to the wider of them.
+  controls stay inside it is a question about their rendered sizes against a
+  `2.75rem` row the width of the phone, and jsdom lays nothing out. It is
+  checked in a browser by measuring every control against the row's own
+  rectangle, at the narrowest phone worth supporting: four controls at 360px
+  wide, with Start on one side of the clock and dice and reset on the other,
+  because Start and reset together overflow their half. It has failed there
+  before — when the hub still turned a quarter at five and six, centring by
+  layout let the turned track size itself to its widest control and spill
+  over a card. The hub no longer turns, which is what makes layout safe again;
+  `TIMER-9` asserts the clock's column, not its pixels.
 - **That the chip occludes.** `LIFE-6` is a rule about one thing being drawn
   over another, which jsdom has no way to disagree with. What is covered is
   that the chip is there and reads correctly; that it does not merge into the
@@ -432,9 +489,23 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   a thumb slides off a button and the gesture survives is exercised only
   through the guard around it. Any slide worth much leaves the button it
   started on, so capture is what makes HOLD-8 work on a phone, and nothing
-  here proves it.
+  here proves it. The same goes for the dice button (ROLL-2): once the picker
+  is up, capture is what keeps the finger's moves coming to the button that
+  reports them.
+- **Which option is under a real finger.** `ROLL-2` and `ROLL-3` are tested
+  with a stand-in `elementFromPoint`, because jsdom lays nothing out and has
+  none of its own — so the tests say what is under the finger and check what
+  the picker does about it. That the browser's own hit test finds the option a
+  thumb is actually on is checked in a browser with dispatched pointer events,
+  and on a phone.
+- **Timers in a hidden page.** The long press (ROLL-2) waits on a timer, and a
+  browser throttles timers in a page it is not showing — a 350 ms wait has
+  been measured at two seconds in a hidden tab. Nobody plays on a hidden page,
+  but anybody checking the hold in a background tab will see it late, and it
+  is not the code.
 - **The buzz.** jsdom has no `navigator.vibrate`. The feature test guarding it
-  is covered; the buzz itself (HOLD-12) is checked by hand on a device.
+  is covered; the buzz itself (HOLD-12, and the one a long press gives) is
+  checked by hand on a device.
 - **The screen staying lit.** `navigator.wakeLock` is stubbed in the tests, so
   what is covered is the asking, the asking again and the release — not that a
   real phone stays awake. AWAKE-1 is checked by hand on a device, like the buzz.

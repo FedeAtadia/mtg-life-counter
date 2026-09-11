@@ -1,13 +1,14 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createGame } from "@/lib/gameReducer";
-import {
-  HUB_TRACK,
-  HUB_TRACK_RUNNING,
-  SEAT_LAYOUTS,
-} from "@/lib/seatLayout";
+import { HUB_TRACK, SEAT_LAYOUTS } from "@/lib/seatLayout";
 import { startedTimerAt } from "@/lib/timer";
-import { hub, openSettings, renderBoard } from "../test/harness";
+import {
+  hub,
+  openSettings,
+  renderBoard,
+  resetFromSettings,
+} from "../test/harness";
 
 const T0 = 1_700_000_000_000;
 
@@ -68,8 +69,7 @@ describe("starting the game (TIMER-7)", () => {
     act(() => vi.advanceTimersByTime(90_000));
 
     const sheet = openSettings();
-    fireEvent.click(within(sheet).getByText(/Reset game/));
-    fireEvent.click(within(sheet).getByText(/Tap again to reset/));
+    resetFromSettings(sheet);
 
     expect(startButton()).toBeInTheDocument();
     act(() => vi.advanceTimersByTime(30_000));
@@ -77,41 +77,40 @@ describe("starting the game (TIMER-7)", () => {
       "Game settings. Elapsed 0:00, not started",
     );
   });
-
-  it("faces the same way as the hub it sits above", () => {
-    // Both sit on the centre seam and take the layout's hub rotation. One
-    // turned and one not would read as two unrelated things (SEAT-3).
-    renderBoard(createGame("commander", 6));
-
-    expect(startButton()!.style.transform).toContain("rotate(90deg)");
-    expect(hub().style.transform).toContain("rotate(90deg)");
-  });
 });
 
 describe("where the hub sits (SEAT-7, TIMER-9)", () => {
-  it("leaves the clock in the same place when Start goes away", () => {
+  const row = () => hub().parentElement as HTMLElement;
+
+  it("holds the clock in the middle of three columns with equal sides", () => {
+    // Equal sides are what put the middle column at the exact centre of the
+    // board, whatever either side is holding. The clock stays centred by
+    // construction rather than by an offset somebody has to keep in step.
+    renderBoard();
+
+    expect(row()).toHaveStyle({ gridTemplateColumns: "1fr auto 1fr" });
+    expect(row().children[1]).toBe(hub());
+  });
+
+  it("leaves the clock in the same column when Start goes away", () => {
     // The clock is on the board for the whole game and Start for the first few
     // seconds of it. If starting a game shifted the clock, the one control
     // anybody reaches for all night would move the moment play began.
     renderBoard();
     expect(startButton()).toBeInTheDocument();
-    const before = hub().style.transform;
 
     fireEvent.click(startButton()!);
 
     expect(startButton()).not.toBeInTheDocument();
-    expect(hub().style.transform).toBe(before);
+    expect(row().children[1]).toBe(hub());
   });
 
-  it("moves Start along the hub's band, never across it", () => {
-    // The band is only deep enough for one pill (SEAT-7), so an offset across
-    // it would put Start back over a card — which is what the band exists to
-    // stop. In the hub's own frame that is translateX either way.
+  it("puts Start in the row beside the clock, never across it", () => {
+    // The row is only deep enough for one pill (SEAT-7). Anything stacked
+    // across it would be back over a card.
     renderBoard();
 
-    const moved = startButton()!.style.transform;
-    expect(moved).toContain("translateX");
-    expect(moved).not.toContain("translateY");
+    expect(row().children[0]).toContainElement(startButton());
   });
 
   it("gives the hub a cell of the board rather than floating it over one", () => {
@@ -125,69 +124,45 @@ describe("where the hub sits (SEAT-7, TIMER-9)", () => {
   });
 });
 
-describe("the band closing up when a game starts (SEAT-9)", () => {
+describe("one depth for the whole game (SEAT-9)", () => {
   const board = () => document.querySelector("main") as HTMLElement;
-  const track = () => board().style.getPropertyValue("--hub-track");
+  const rows = () => board().style.gridTemplateRows;
 
-  it("holds the deeper band while Start is still there", () => {
+  it("names the hub's depth outright rather than through a variable", () => {
+    // A template that reads a custom property looks identical in every state
+    // while the depth behind it changes — which is exactly how the band used
+    // to close up. Naming the value is what makes "unchanged" mean unchanged.
     renderBoard();
 
-    expect(startButton()).toBeInTheDocument();
-    expect(track()).toBe(HUB_TRACK);
+    expect(rows()).toContain(HUB_TRACK);
+    expect(rows()).not.toContain("var(");
   });
 
-  it("gives the room back to the seats once the clock is running", () => {
+  it("keeps the board's rows exactly as they were when the clock starts", () => {
+    // Every card, and every control in the hub's row, stays where a hand last
+    // found it. A board that re-flowed at the moment play began would move
+    // six life totals at once.
     renderBoard();
+    const before = rows();
 
     fireEvent.click(startButton()!);
 
     expect(startButton()).not.toBeInTheDocument();
-    expect(track()).toBe(HUB_TRACK_RUNNING);
+    expect(rows()).toBe(before);
   });
 
-  it("stays shallow while a game is paused, because Start does not come back", () => {
-    // Pausing banks the time; it does not un-start the game (TIMER-3), so the
-    // Start button stays gone and the band has no reason to reopen.
+  it("keeps them through a pause and a reset", () => {
     renderBoard();
+    const before = rows();
     fireEvent.click(startButton()!);
-    // Let some clock run first. A game paused the same instant it began has
-    // nothing banked and is genuinely a fresh board again — Start returns and
-    // the band reopens, which is the next test, not this one.
     act(() => vi.advanceTimersByTime(30_000));
 
     const sheet = openSettings();
     fireEvent.click(within(sheet).getByText("Pause"));
+    expect(rows()).toBe(before);
 
-    expect(startButton()).not.toBeInTheDocument();
-    expect(track()).toBe(HUB_TRACK_RUNNING);
-  });
-
-  it("reopens for a game paused before a single second was banked", () => {
-    // The edge the case above steps around: nothing ran, so nothing is banked,
-    // and a board with a zeroed stopped clock is exactly a board that has never
-    // been started (TIMER-4). Start comes back, so the room for it must too.
-    renderBoard();
-    fireEvent.click(startButton()!);
-
-    const sheet = openSettings();
-    fireEvent.click(within(sheet).getByText("Pause"));
-
+    resetFromSettings(sheet);
     expect(startButton()).toBeInTheDocument();
-    expect(track()).toBe(HUB_TRACK);
-  });
-
-  it("reopens for a game that has been reset back to the start", () => {
-    // Reset puts the clock back to zero and stopped (TIMER-5), so Start
-    // returns — and the band has to make room for it again.
-    renderBoard();
-    fireEvent.click(startButton()!);
-    expect(track()).toBe(HUB_TRACK_RUNNING);
-
-    const sheet = openSettings();
-    fireEvent.click(within(sheet).getByText(/Reset game/));
-    fireEvent.click(within(sheet).getByText(/Tap again to reset/));
-
-    expect(startButton()).toBeInTheDocument();
-    expect(track()).toBe(HUB_TRACK);
+    expect(rows()).toBe(before);
   });
 });
