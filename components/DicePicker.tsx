@@ -1,5 +1,6 @@
 "use client";
 
+import DieShape, { sidesOf } from "./DieShape";
 import { THROW_KINDS, isThrowKind } from "@/lib/dice";
 import type { ThrowKind } from "@/lib/dice";
 
@@ -117,12 +118,31 @@ function Option({
       type="button"
       data-throw={kind}
       data-armed={armed}
+      aria-label={LABEL[kind]}
       onClick={() => onPick(kind)}
       className={`flex h-16 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] font-[family-name:var(--font-display)] text-xl font-semibold text-[var(--parchment)] active:brightness-125 data-[armed=true]:border-[var(--gold)] data-[armed=true]:bg-[var(--parchment-bg)] data-[armed=true]:text-[var(--gold)] ${
         wide ? "col-span-3" : ""
       }`}
     >
-      <span>{LABEL[kind]}</span>
+      {/* The button's own name is the label (ROLL-9); everything inside it is
+          artwork, and is hidden so a screen reader reads "d12" rather than
+          "d12 12". */}
+      <span
+        className="relative grid size-10 shrink-0 place-items-center"
+        aria-hidden="true"
+      >
+        <DieShape kind={kind} className="absolute inset-0 size-full" />
+        <span
+          className={`relative leading-none ${
+            // A triangle's middle is not its centre: the 4 sits where the area
+            // is, and has less room to sit in.
+            kind === "d4" ? "translate-y-[3px] text-[11px]" : "text-[13px]"
+          }`}
+        >
+          {sidesOf(kind)}
+        </span>
+      </span>
+      {kind === "coin" && <span aria-hidden="true">Coin</span>}
     </button>
   );
 }

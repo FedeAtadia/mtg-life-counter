@@ -327,6 +327,11 @@ could mean anything.
   life total.
 - **ROLL-8** Nothing random is read while rendering — only when an option is
   chosen — so the prerendered board and the hydrated one agree (PLAT-3).
+- **ROLL-9** Each option is drawn as the die's own silhouette with its number
+  inside it, rather than as the word for it. A d8, d10 and d12 are nearly the
+  same outline, so the number is what tells them apart; the shape is what makes
+  them findable without reading. Every option still answers to its name — "d20",
+  "Coin" — for anything that reads names rather than shapes.
 
 ## SAVE — Persistence
 

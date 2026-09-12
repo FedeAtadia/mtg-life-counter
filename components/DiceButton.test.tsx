@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DICE } from "@/lib/dice";
 import { createGame } from "@/lib/gameReducer";
 import { MAX_PLAYERS, MIN_PLAYERS } from "@/lib/rules";
 import { startedTimerAt } from "@/lib/timer";
@@ -100,6 +101,74 @@ describe("the dice button (ROLL-1)", () => {
     for (const name of ["d4", "d6", "d8", "d10", "d12", "d20", "Coin"]) {
       expect(names).toContain(name);
     }
+  });
+});
+
+describe("what the options are drawn as (ROLL-9)", () => {
+  /** Every option in the open picker, by kind. */
+  const options = () =>
+    Object.fromEntries(
+      [...dicePicker()!.querySelectorAll("[data-throw]")].map((option) => [
+        (option as HTMLElement).dataset.throw,
+        option as HTMLElement,
+      ]),
+    );
+
+  it("draws a die as a shape carrying its number, not as a word", () => {
+    renderBoard();
+    fireEvent.click(diceButton());
+    const option = options().d20;
+
+    expect(option.querySelector("svg")).toBeInTheDocument();
+    // The number, and nothing but the number: "d20" spelled out is what this
+    // replaces.
+    expect(option).toHaveTextContent("20");
+    expect(option.textContent).not.toContain("d");
+  });
+
+  it("gives every die the number of sides its name promises", () => {
+    // A d8, d10 and d12 are nearly the same outline, so the number is the
+    // thing doing the telling apart. A shape labelled wrongly is worse than
+    // no shape.
+    renderBoard();
+    fireEvent.click(diceButton());
+    const drawn = options();
+
+    for (const [kind, sides] of Object.entries(DICE)) {
+      expect(drawn[kind]).toHaveTextContent(String(sides));
+      expect(drawn[kind].querySelector("svg")).toBeInTheDocument();
+    }
+  });
+
+  it("keeps the coin a coin, with no number to show", () => {
+    renderBoard();
+    fireEvent.click(diceButton());
+    const coin = options().coin;
+
+    expect(coin.querySelector("svg")).toBeInTheDocument();
+    expect(coin).toHaveTextContent("Coin");
+  });
+
+  it("still answers to its name, for anything that cannot see a shape", () => {
+    // A screen reader, and every test in this file, find these by name. The
+    // shapes are drawn over a label that never left.
+    renderBoard();
+    fireEvent.click(diceButton());
+
+    for (const name of ["d4", "d6", "d8", "d10", "d12", "d20", "Coin"]) {
+      expect(pickerOption(name)).toBeInTheDocument();
+    }
+  });
+
+  it("hides the artwork from a screen reader, so it is read once", () => {
+    renderBoard();
+    fireEvent.click(diceButton());
+    const option = options().d12;
+
+    // The button's own name says "d12"; the shape and the 12 inside it would
+    // otherwise be read out again after it.
+    expect(option.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(option.querySelector("[aria-hidden='true']")).toBeInTheDocument();
   });
 });
 
