@@ -216,6 +216,14 @@ Covered by `lib/gameReducer.test.ts`, `lib/rules.test.ts`,
   gold panels.
 - **COLOR-5** Each seat starts on a different single colour, cycling WUBRG.
 - **COLOR-6** Identity survives a reset and a format change.
+- **COLOR-7** A pip drawn for a whole identity shows every colour in it, as
+  wedges of one circle in WUBRG order (COLOR-1), so the pip is the same size
+  whether someone plays one colour or five. A single colour keeps its glyph;
+  past one there is no room for even two, let alone five. This is not the gold
+  trim rule — the trim goes gold at three (COLOR-3) precisely so the card reads
+  as multicolour, and the pip shows the real colours for the same reason the
+  wash does (COLOR-4): so a pod of three-colour commanders is not six
+  identical panels.
 
 ## SEAT — Board layout
 

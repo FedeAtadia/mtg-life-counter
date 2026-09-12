@@ -15,6 +15,7 @@ import {
   lifeOn,
   minusZone,
   panelFor,
+  pipColorsIn,
   plusZone,
   readoutModeOn,
   readoutOn,
@@ -487,6 +488,29 @@ describe("the commander damage readout (CMDR-13)", () => {
     expect(readoutModeOn(panel)).toBe("tiles");
     expect(damageEntryOn(panel, "p2")).not.toHaveTextContent("Player 2");
     expect(damageShownOn(panel, "p2")).toBe(0);
+  });
+
+  it("shows every colour an opponent plays, not just their first (COLOR-7)", () => {
+    // The pip is all there is to tell opponents apart once the names are gone,
+    // and a Sultai commander drawn as one blue circle is a mono-blue one.
+    renderBoard(
+      build(createGame("commander", 4), {
+        type: "SET_PLAYER_COLORS",
+        id: "p2",
+        colors: ["b", "g", "u"],
+      }),
+    );
+    const panel = panelFor("Player 1");
+
+    expect(pipColorsIn(damageEntryOn(panel, "p2"))).toEqual(["u", "b", "g"]);
+  });
+
+  it("leaves a single-colour opponent their glyph (COLOR-7)", () => {
+    // Nothing to divide, and a symbol says more than one whole wedge.
+    renderBoard(createGame("commander", 4));
+    const panel = panelFor("Player 1");
+
+    expect(pipColorsIn(damageEntryOn(panel, "p2"))).toEqual([]);
   });
 
   it("marks the counter that is lethal, not just the seat (CMDR-15)", () => {
