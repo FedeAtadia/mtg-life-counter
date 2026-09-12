@@ -321,8 +321,12 @@ could mean anything.
 - **ROLL-5** The result stays up until it is pressed away, however long that
   takes, and names the die it came off — "17" alone does not settle an
   argument about which die was thrown.
-- **ROLL-6** The result reads upright from both long edges of the table at
-  once. A throw belongs to no one seat, so it does not face one.
+- **ROLL-6** *Retired.* The result used to be drawn twice, upright for the near
+  edge and turned for the far one, on the grounds that a throw belongs to no
+  one seat. It is drawn once now, as the die itself (ROLL-10) — a die on a
+  table has one face up, and two of them read as two throws. The cost, put to
+  the table and accepted: the far side reads it upside down, as they would a
+  real die.
 - **ROLL-7** A throw changes nothing in the game and is not saved. It is not a
   life total.
 - **ROLL-8** Nothing random is read while rendering — only when an option is
@@ -332,6 +336,14 @@ could mean anything.
   same outline, so the number is what tells them apart; the shape is what makes
   them findable without reading. Every option still answers to its name — "d20",
   "Coin" — for anything that reads names rather than shapes.
+- **ROLL-10** A throw is drawn once, in the middle of the board, as the die it
+  was thrown as (ROLL-9) with its result on the face. The board stays visible
+  behind it: a throw is something that happened on the table, not another
+  screen.
+- **ROLL-11** It tumbles for about a second and settles, and the number arrives
+  upright rather than spinning into place — the shape turns, the number does
+  not. A coin turns through its own edge instead, because that is what a coin
+  does. A phone set to reduce motion is given the settled result immediately.
 
 ## SAVE — Persistence
 
@@ -537,6 +549,13 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   been measured at two seconds in a hidden tab. Nobody plays on a hidden page,
   but anybody checking the hold in a background tab will see it late, and it
   is not the code.
+- **The tumble.** `ROLL-11` is CSS: keyframes in `app/globals.css` and two
+  classes. jsdom runs no animation and its `matchMedia` never matches, so what
+  the tests hold is the wiring — the shape carries the tumble, the number
+  carries the counter-turn — and not that either actually moves, or that
+  `prefers-reduced-motion` lands it immediately. Both are checked in a browser,
+  where the reduced-motion path is the one worth remembering to look at: it is
+  the branch nobody exercises by accident.
 - **The buzz.** jsdom has no `navigator.vibrate`. The feature test guarding it
   is covered; the buzz itself (HOLD-12, and the one a long press gives) is
   checked by hand on a device.

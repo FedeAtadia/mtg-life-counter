@@ -37,16 +37,23 @@ export default function DieShape({
   kind,
   className,
   strokeWidth = 1.5,
+  fill = "none",
 }: {
   kind: ThrowKind;
   className?: string;
   strokeWidth?: number;
+  /**
+   * A face to write a number on. Left hollow in the picker, where the option's
+   * own background is behind it; filled for a throw, which is drawn over a
+   * board that is still showing through.
+   */
+  fill?: string;
 }) {
   return (
     <svg
       viewBox="0 0 24 24"
       className={className}
-      fill="none"
+      fill={fill}
       stroke="currentColor"
       strokeWidth={strokeWidth}
       strokeLinejoin="round"

@@ -76,8 +76,82 @@ body {
   animation: board-in 200ms ease-out both;
 }
 
+/* A throw tumbles into the middle of the board and settles (ROLL-11).
+   The shape turns; the number is turned back by the same amount, so it
+   arrives upright rather than whipping into place at the end — which is the
+   difference between a die landing and a label appearing. */
+@keyframes throw-tumble {
+  0% {
+    transform: scale(0.34) rotate(-430deg);
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  68% {
+    transform: scale(1.1) rotate(16deg);
+  }
+  84% {
+    transform: scale(0.97) rotate(-6deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+/* A coin has no corners to tumble over, so it turns through its own edge. */
+@keyframes throw-flip {
+  0% {
+    transform: scale(0.4) rotateY(-1080deg);
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  72% {
+    transform: scale(1.1) rotateY(24deg);
+  }
+  100% {
+    transform: scale(1) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes throw-steady {
+  0% {
+    transform: rotate(430deg);
+  }
+  68% {
+    transform: rotate(-16deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.throw-die {
+  animation: throw-tumble 980ms cubic-bezier(0.18, 0.72, 0.24, 1) both;
+}
+
+.throw-die-coin {
+  animation-name: throw-flip;
+}
+
+.throw-steady {
+  animation: throw-steady 980ms cubic-bezier(0.18, 0.72, 0.24, 1) both;
+}
+
+/* A coin's number does not counter-turn: it is flipping about the other axis,
+   and turning the word as well only makes it wobble. */
+.throw-die-coin .throw-steady {
+  animation: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .board-in {
+  .board-in,
+  .throw-die,
+  .throw-steady {
     animation-duration: 1ms;
   }
 }
