@@ -250,7 +250,12 @@ export default function PlayerPanel({
             <TypeLine trim={trim} reason={reason} hint="Tap to enter">
               Commander damage
             </TypeLine>
-            <DamageReadout player={player} opponents={opponents} dim={dim} />
+            <DamageReadout
+              player={player}
+              opponents={opponents}
+              rotation={rotation}
+              dim={dim}
+            />
           </button>
         ) : (
           <TypeLine trim={trim} reason={reason}>

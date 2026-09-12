@@ -12,20 +12,45 @@ export const LETHAL_COMMANDER_DAMAGE = 21;
 export const MAX_NAME_LENGTH = 16;
 
 /**
- * The most opponents whose damage still fits on the card as a named line each.
+ * The most opponents whose damage still fits on a card as a named line each.
  *
- * Past this the readout drops to pips and values (CMDR-14). The number is a
- * measurement, not a preference: at four players a panel is 189 px tall and a
- * line costs 18 of them, which leaves the life total 45 px. A fourth line takes
- * that below what reads across a table.
+ * A measurement, not a preference: a line costs about 18px of card, and a
+ * fourth one takes the life total below what reads across a table.
  */
 export const MAX_NAMED_DAMAGE_ROWS = 3;
 
 export type DamageReadoutMode = "rows" | "tiles";
 
-/** How a card draws its damage readout for this many opponents (CMDR-14). */
-export function damageReadoutMode(opponents: number): DamageReadoutMode {
+/**
+ * How a card draws its damage readout (CMDR-14).
+ *
+ * Named lines need height, and which cards have any depends on the seat rather
+ * than on the player count. A quarter-turned seat takes its height, as its
+ * player reads it, from half the board's width — about 192px at every count —
+ * so lines there cost it more than twice what the strip costs, out of the life
+ * total. Counting opponents alone is what gave a four-player board a smaller
+ * life total than a six-player one.
+ *
+ * The opponent cap still applies to upright seats, or the near-edge seat at
+ * five players would try to draw four lines in a 232px panel.
+ */
+export function damageReadoutMode(
+  opponents: number,
+  turned: boolean,
+): DamageReadoutMode {
+  if (turned) return "tiles";
   return opponents > MAX_NAMED_DAMAGE_ROWS ? "tiles" : "rows";
+}
+
+/**
+ * How big the named lines are drawn, given how many share the card (CMDR-17).
+ *
+ * A lone line has room the third of three has not. Two and three are left
+ * alone: the only card that draws two is the near-edge seat at three players,
+ * and growing its rows costs it life total for nothing.
+ */
+export function namedRowScale(rows: number): "lone" | "shared" {
+  return rows <= 1 ? "lone" : "shared";
 }
 
 export function startingLifeFor(format: Format): number {

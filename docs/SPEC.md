@@ -140,9 +140,18 @@ Covered by `lib/gameReducer.test.ts`, `lib/rules.test.ts`,
   without anything being opened, in a text box where a real card keeps its
   rules. Reading the table is the common act; entering damage is the rare one,
   and only the rare one should cost a tap.
-- **CMDR-14** Up to three opponents get a line each — pip, name and value. Four
-  or more get pips and values without names, because four lines will not fit
-  beside a life total on a phone six people are sharing.
+- **CMDR-14** Named lines go only to a card with the height for them: an upright
+  seat with no more than three opponents. Every quarter-turned seat gets pips
+  and values instead, and so does any seat with four or more opponents. A turned
+  seat's height, as its player reads it, comes from half the board's width —
+  about 192px whatever the player count — and named lines there cost more than
+  twice what the strip costs, straight out of the life total. Counting opponents
+  alone gave a four-player board a smaller life total than a six-player one.
+- **CMDR-17** A lone named line is drawn large. One opponent on a two-player
+  board has room the third of three has not, and sizing all of them alike left
+  that card as cramped as the busiest one. Two and three lines are unchanged:
+  the only card that draws two is the near-edge seat at three players, which
+  has a tall panel and nothing to gain from the height.
 - **CMDR-15** A counter at lethal is marked on the readout itself, so a seat
   that is out can be traced to the commander that did it without opening
   anything.
@@ -465,10 +474,22 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   frame are asserted structurally (grid areas, rotations, tile columns) but
   never rendered for real — jsdom does not lay anything out. `SEAT-5` in
   particular is checked by eye, not by test.
-- **That the card frame fits.** `CMDR-13` costs the life total about half its
-  height at four players — 87 px to 45 — and `CMDR-14` exists because the rows
-  stop fitting at four opponents. Which mode is chosen is tested; that the
-  chosen one is legible on a real phone is not, and cannot be here.
+- **That the card frame fits.** `CMDR-13` costs the life total height, and
+  `CMDR-14` decides how much. Measured at 393×760, with the clock running:
+
+  | Players | Block | Life total |
+  | --- | --- | --- |
+  | 2 | 84px, one large line | 142px |
+  | 3, near edge | 77px, two lines | 121px |
+  | 3, the facing pair | 56px, strip | 62px |
+  | 4 | 56px, strip | 62px |
+  | 5, near edge | 65px, strip | 78px |
+  | 5 and 6, turned seats | 43px, strip | 77px |
+
+  Counting opponents alone used to put three named lines on every four-player
+  card: a 78px block and a 43px life total, smaller than a six-player board's.
+  Which mode a card gets is tested; that the chosen one is legible on a real
+  phone is not, and cannot be here.
 - **That the hub's band holds its controls.** `SEAT-7` is tested as grid
   areas, which is what stops a *card* reaching into the band. Whether the
   controls stay inside it is a question about their rendered sizes against a
