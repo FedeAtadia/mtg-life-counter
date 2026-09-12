@@ -140,6 +140,18 @@ export function damageEntryOn(
   return entry as HTMLElement;
 }
 
+/**
+ * The colours a pip is drawn in, read off the wedges (COLOR-7).
+ *
+ * Empty for a pip with a single colour or none: those keep the disc and glyph,
+ * which say what they are without needing a wedge.
+ */
+export function pipColorsIn(element: HTMLElement): string[] {
+  return [...element.querySelectorAll("[data-wedge]")].map(
+    (wedge) => wedge.getAttribute("data-wedge") ?? "",
+  );
+}
+
 /** What the readout says one opponent's commander has landed. */
 export function damageShownOn(panel: HTMLElement, sourceId: string): number {
   const value = damageEntryOn(panel, sourceId).querySelector(

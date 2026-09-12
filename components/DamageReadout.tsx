@@ -128,10 +128,10 @@ function Entry({
   row?: typeof SHARED;
 }) {
   const lethal = value >= LETHAL_COMMANDER_DAMAGE;
+  // The pip is the only thing identifying a commander once the names go, so it
+  // carries the whole identity rather than its first colour (COLOR-7) — and a
+  // colourless one still gets its own diamond rather than nothing (COLOR-2).
   const colors = identityOf(source);
-  // The pip is the only thing identifying a commander once the names go, so a
-  // colourless one gets its own diamond rather than nothing at all (COLOR-2).
-  const pip = colors.length === 0 ? "c" : colors[0];
 
   const tone = lethal
     ? {
@@ -160,7 +160,7 @@ function Entry({
           }
         }
       >
-        <ManaPip color={pip} size={SIZE.tilePip} />
+        <ManaPip colors={colors} size={SIZE.tilePip} />
         <span
           data-damage-value
           className="tnum font-semibold"
@@ -179,7 +179,7 @@ function Entry({
       className="flex items-center gap-[1.6cqw] rounded-[0.6cqh] px-[0.6cqw] leading-[1.15]"
       style={{ minHeight: row.minHeight, ...tone }}
     >
-      <ManaPip color={pip} size={row.pip} />
+      <ManaPip colors={colors} size={row.pip} />
       <span
         className="min-w-0 flex-1 truncate"
         style={{

@@ -1,4 +1,10 @@
-import { COLORLESS_HEX, MANA } from "@/lib/identity";
+import {
+  COLORLESS_HEX,
+  MANA,
+  PIP_CENTRE,
+  PIP_RADIUS,
+  pipWedges,
+} from "@/lib/identity";
 import type { ManaColor } from "@/lib/types";
 
 /**
@@ -50,23 +56,74 @@ const GLYPHS: Record<ManaColor | "c", React.ReactNode> = {
   ),
 };
 
-interface Props {
-  /** A mana colour, or "c" for the colourless diamond. */
-  color: ManaColor | "c";
+interface Common {
   /** Any CSS length; defaults to filling its box. */
   size?: string;
   className?: string;
 }
 
-export default function ManaPip({ color, size, className }: Props) {
+/**
+ * One colour, or a whole identity. Exactly one of the two, because a pip that
+ * was given both would have to pick, and the caller already knows which it
+ * means.
+ */
+type Props = Common &
+  (
+    | { color: ManaColor | "c"; colors?: never }
+    | { colors: readonly ManaColor[]; color?: never }
+  );
+
+export default function ManaPip(props: Props) {
+  const { size, className } = props;
+  const wedges = props.colors ? pipWedges(props.colors) : [];
+  const frame = {
+    viewBox: "0 0 24 24",
+    className,
+    style: size ? { width: size, height: size } : undefined,
+    "aria-hidden": true as const,
+  };
+
+  // Two colours or more: the disc is divided instead of carrying a glyph
+  // (COLOR-7). Hairlines on each seam and a ring around the whole, because
+  // white beside green at 20px otherwise runs together.
+  if (wedges.length > 0) {
+    return (
+      <svg {...frame}>
+        {wedges.map((wedge) => (
+          <path
+            key={wedge.color}
+            data-wedge={wedge.color}
+            d={wedge.d}
+            fill={MANA[wedge.color].hex}
+            opacity="0.92"
+          />
+        ))}
+        <g stroke="#12100e" strokeWidth="1.1" fill="none">
+          {wedges.map((wedge) => (
+            <line
+              key={wedge.color}
+              x1={PIP_CENTRE}
+              y1={PIP_CENTRE}
+              x2={wedge.cut[0]}
+              y2={wedge.cut[1]}
+            />
+          ))}
+          <circle
+            cx={PIP_CENTRE}
+            cy={PIP_CENTRE}
+            r={PIP_RADIUS - 0.55}
+            opacity="0.9"
+          />
+        </g>
+      </svg>
+    );
+  }
+
+  // One colour, or none: the pip it has always been.
+  const color = props.colors ? (props.colors[0] ?? "c") : props.color;
   const fill = color === "c" ? COLORLESS_HEX : MANA[color].hex;
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={className}
-      style={size ? { width: size, height: size } : undefined}
-      aria-hidden="true"
-    >
+    <svg {...frame}>
       <circle cx="12" cy="12" r="12" fill={fill} opacity="0.92" />
       <g fill="#12100e" transform="translate(2.6 2.6) scale(0.78)">
         {GLYPHS[color]}
