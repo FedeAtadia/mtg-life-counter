@@ -332,18 +332,51 @@ describe("the result (ROLL-5, ROLL-6)", () => {
     expect(within(throwResult()!).getAllByText("d20").length).toBeGreaterThan(0);
   });
 
-  it("shows the face twice, once turned for the far edge", () => {
+  it("shows the result once, not twice (ROLL-10)", () => {
+    // It used to be drawn at both ends of the board, on the grounds that a
+    // throw belongs to nobody (ROLL-6, retired). A die on a table has one
+    // face up, and two of them read as two throws.
     renderBoard();
     throwD20();
 
-    const faces = within(throwResult()!).getAllByText("11");
-    expect(faces).toHaveLength(2);
-    const turns = faces.map(
-      (face) =>
-        (face.closest("[data-throw-face]") as HTMLElement).style.transform,
-    );
-    expect(turns).toContain("rotate(180deg)");
-    expect(turns).toContain("rotate(0deg)");
+    expect(within(throwResult()!).getAllByText("11")).toHaveLength(1);
+    expect(throwResult()!.querySelectorAll("[data-throw-die]")).toHaveLength(1);
+  });
+
+  it("draws it as the die it was thrown as (ROLL-10)", () => {
+    renderBoard();
+    throwD20();
+    const die = throwResult()!.querySelector("[data-throw-die]")!;
+
+    expect(die).toHaveAttribute("data-throw-die", "d20");
+    expect(die.querySelector("svg")).toBeInTheDocument();
+    // The number sits on that shape rather than beside it.
+    expect(die).toHaveTextContent("11");
+  });
+
+  it("draws a coin as a coin, landed on a side", () => {
+    drawAlways(0.9);
+    renderBoard();
+    fireEvent.click(diceButton());
+    fireEvent.click(pickerOption("Coin"));
+    const die = throwResult()!.querySelector("[data-throw-die]")!;
+
+    expect(die).toHaveAttribute("data-throw-die", "coin");
+    expect(die).toHaveTextContent("Tails");
+  });
+
+  it("carries the tumble, and the number does not ride its spin (ROLL-11)", () => {
+    // jsdom runs no animation, so what is checked here is that the parts are
+    // wired to the right elements: the shape tumbles, the number is turned
+    // back so it arrives upright. The motion itself is a browser check, and is
+    // recorded under Known gaps.
+    renderBoard();
+    throwD20();
+    const die = throwResult()!.querySelector("[data-throw-die]") as HTMLElement;
+    const number = within(throwResult()!).getByText("11");
+
+    expect(die.className).toContain("throw-die");
+    expect(number.className).toContain("throw-steady");
   });
 });
 
