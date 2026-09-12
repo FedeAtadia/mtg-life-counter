@@ -174,8 +174,9 @@ Covered by `lib/gameReducer.test.ts`, `lib/rules.test.ts`,
 
 ## ROSTER — Who is at the table
 
-*Enforced by `lib/rules.ts`, `lib/gameReducer.ts`. Covered by
-`lib/gameReducer.test.ts`, `components/SettingsSheet.test.tsx`.*
+*Enforced by `lib/rules.ts`, `lib/gameReducer.ts`,
+`components/SettingsSheet.tsx`. Covered by `lib/gameReducer.test.ts`,
+`components/SettingsSheet.test.tsx`.*
 
 - **ROSTER-1** Between 2 and 6 players. The stepper stops at both ends.
 - **ROSTER-2** A player who joins gets the current format's starting life, and
@@ -187,6 +188,16 @@ Covered by `lib/gameReducer.test.ts`, `lib/rules.test.ts`,
   reused by the next player to join.
 - **ROSTER-5** A player can be removed from the stepper, which takes the last
   seat, or from their own row, which takes that one.
+- **ROSTER-6** A player can be moved to another seat from settings, by dragging
+  their row's handle. People do not sit in the same chairs every game, and the
+  alternative was renaming everyone.
+- **ROSTER-7** Everything of theirs moves with them: life, name, colour
+  identity, and the damage every other commander has dealt them. All of it is
+  kept against the player and none of it against the seat, so a move is a
+  reorder and nothing else.
+- **ROSTER-8** The seat number on a card follows the move, because it is a seat
+  number. Names do not: "Player 3" comes from who they are, not where they sit,
+  so nobody is renamed by being moved.
 
 ## NAME — Player names
 
@@ -549,6 +560,14 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   been measured at two seconds in a hidden tab. Nobody plays on a hidden page,
   but anybody checking the hold in a background tab will see it late, and it
   is not the code.
+- **Reordering seats needs a pointer.** `ROSTER-6` is a drag and nothing else:
+  there is no keyboard or screen-reader path to it, so a player using either
+  cannot change who sits where. That was raised and decided rather than
+  overlooked — the alternative was two more controls on a row that already
+  holds a name field, five colour buttons and a remove. The move itself is
+  fully covered at the reducer, and the wiring is covered with a stood-in
+  `elementFromPoint`; what no test here can reach is the gesture — whether a
+  thumb finds the handle, and whether dragging fights the sheet's own scroll.
 - **The tumble.** `ROLL-11` is CSS: keyframes in `app/globals.css` and two
   classes. jsdom runs no animation and its `matchMedia` never matches, so what
   the tests hold is the wiring — the shape carries the tumble, the number

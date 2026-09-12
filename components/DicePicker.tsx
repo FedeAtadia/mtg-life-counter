@@ -2,6 +2,7 @@
 
 import DieShape, { sidesOf } from "./DieShape";
 import { THROW_KINDS, isThrowKind } from "@/lib/dice";
+import { targetUnder } from "@/lib/pointerTarget";
 import type { ThrowKind } from "@/lib/dice";
 
 /**
@@ -21,18 +22,12 @@ export interface Anchor {
 /**
  * Which option, if any, is under a point on the screen (ROLL-2, ROLL-3).
  *
- * Asks the browser rather than working it out from the picker's own geometry,
- * which would have to be kept in step with every change to its layout. What
- * is under a finger is usually an option's label rather than the option, hence
- * the walk up to the nearest one. Null for anything else — the gap between
- * options, the backdrop — and for a browser that cannot say at all.
+ * Null for anything that is not an option — the gap between them, the backdrop
+ * — and for a browser that cannot say at all. `targetUnder` explains why it is
+ * asked this way rather than measured.
  */
 export function throwKindAt(x: number, y: number): ThrowKind | null {
-  if (typeof document.elementFromPoint !== "function") return null;
-  const option = document
-    .elementFromPoint(x, y)
-    ?.closest<HTMLElement>("[data-throw]");
-  const kind = option?.dataset.throw;
+  const kind = targetUnder(x, y, "[data-throw]")?.dataset.throw;
   return isThrowKind(kind) ? kind : null;
 }
 
