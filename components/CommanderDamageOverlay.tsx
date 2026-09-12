@@ -3,6 +3,7 @@
 import HoldHint from "./HoldHint";
 import { identityOf, trimFor, washFor } from "@/lib/identity";
 import { LETHAL_COMMANDER_DAMAGE, displayName } from "@/lib/rules";
+import { isQuarterTurned } from "@/lib/seatLayout";
 import { useGame } from "@/lib/useGame";
 import { useHoldSlider } from "@/lib/useHoldSlider";
 import type { Rotation } from "@/lib/seatLayout";
@@ -44,7 +45,7 @@ function rowsFor<T>(opponents: readonly T[]): T[][] {
  * floats over the whole board rather than sitting in a cell.
  */
 function frameFor(rotation: Rotation) {
-  const vertical = rotation === 90 || rotation === -90;
+  const vertical = isQuarterTurned(rotation);
   return {
     width: vertical ? "min(90dvh, 42rem)" : "min(92dvw, 42rem)",
     height: vertical ? "min(86dvw, 26rem)" : "min(64dvh, 26rem)",

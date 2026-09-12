@@ -4,7 +4,10 @@ import {
   LETHAL_COMMANDER_DAMAGE,
   damageReadoutMode,
   displayName,
+  namedRowScale,
 } from "@/lib/rules";
+import { isQuarterTurned } from "@/lib/seatLayout";
+import type { Rotation } from "@/lib/seatLayout";
 import type { Player } from "@/lib/types";
 
 /**
@@ -16,9 +19,10 @@ import type { Player } from "@/lib/types";
  * that opens the pad, because the type line and this box are one target
  * (CMDR-8).
  *
- * Sized against its own box rather than the panel, like the damage tiles are:
- * text scaled off the panel behind it gets bigger as the box it sits in gets
- * smaller, which is exactly backwards at five and six players.
+ * Everything here is sized against the panel, which is the nearest size
+ * container: this box has no height of its own to measure — it is whatever its
+ * contents come to — so making it one would be circular and collapse it to
+ * nothing. That is the trap the type line fell into once already.
  */
 const SIZE = {
   pip: "min(7.6cqh, 4.2cqw, 20px)",
@@ -28,16 +32,45 @@ const SIZE = {
   tileValue: "min(9cqh, 5.4cqw, 19px)",
 };
 
+/**
+ * A line with the card to itself, which happens only at two players (CMDR-17).
+ *
+ * Every size here is capped in pixels, and on a two-player card those caps are
+ * what binds — so without this the one line is drawn exactly as small as the
+ * third of three, on a card with three times the room.
+ */
+const LONE = {
+  minHeight: "min(17cqh, 54px)",
+  pip: "min(13cqh, 7cqw, 34px)",
+  name: "min(11cqh, 6cqw, 27px)",
+  value: "min(12.5cqh, 7cqw, 32px)",
+};
+
+const SHARED = {
+  minHeight: "min(8cqh, 24px)",
+  pip: SIZE.pip,
+  name: SIZE.name,
+  value: SIZE.value,
+};
+
 interface Props {
   player: Player;
   /** Everyone else at the table. Never includes `player` — see CMDR-1. */
   opponents: Player[];
+  /** The seat this card sits in, which is what decides how this is drawn. */
+  rotation: Rotation;
   /** How a seat that is out recedes, applied by the panel band by band. */
   dim?: React.CSSProperties;
 }
 
-export default function DamageReadout({ player, opponents, dim }: Props) {
-  const mode = damageReadoutMode(opponents.length);
+export default function DamageReadout({
+  player,
+  opponents,
+  rotation,
+  dim,
+}: Props) {
+  const mode = damageReadoutMode(opponents.length, isQuarterTurned(rotation));
+  const row = namedRowScale(opponents.length) === "lone" ? LONE : SHARED;
 
   const entries = opponents.map((source) => ({
     source,
@@ -62,7 +95,13 @@ export default function DamageReadout({ player, opponents, dim }: Props) {
         </div>
       ) : (
         entries.map(({ source, value }) => (
-          <Entry key={source.id} source={source} value={value} mode={mode} />
+          <Entry
+            key={source.id}
+            source={source}
+            value={value}
+            mode={mode}
+            row={row}
+          />
         ))
       )}
     </div>
@@ -80,10 +119,13 @@ function Entry({
   source,
   value,
   mode,
+  row = SHARED,
 }: {
   source: Player;
   value: number;
   mode: "rows" | "tiles";
+  /** How big a named line is drawn; ignored by a tile (CMDR-17). */
+  row?: typeof SHARED;
 }) {
   const lethal = value >= LETHAL_COMMANDER_DAMAGE;
   const colors = identityOf(source);
@@ -134,14 +176,14 @@ function Entry({
     <span
       data-damage-from={source.id}
       data-lethal={lethal ? "true" : "false"}
-      className="flex min-h-[min(8cqh,24px)] items-center gap-[1.6cqw] rounded-[0.6cqh] px-[0.6cqw] leading-[1.15]"
-      style={tone}
+      className="flex items-center gap-[1.6cqw] rounded-[0.6cqh] px-[0.6cqw] leading-[1.15]"
+      style={{ minHeight: row.minHeight, ...tone }}
     >
-      <ManaPip color={pip} size={SIZE.pip} />
+      <ManaPip color={pip} size={row.pip} />
       <span
         className="min-w-0 flex-1 truncate"
         style={{
-          fontSize: SIZE.name,
+          fontSize: row.name,
           color: lethal
             ? "color-mix(in oklab, var(--lethal) 72%, white)"
             : value === 0
@@ -154,7 +196,7 @@ function Entry({
       <span
         data-damage-value
         className="tnum shrink-0 font-semibold"
-        style={{ fontSize: SIZE.value, color: valueColor }}
+        style={{ fontSize: row.value, color: valueColor }}
       >
         {value}
       </span>

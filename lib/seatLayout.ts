@@ -133,6 +133,20 @@ export function layoutFor(playerCount: number): BoardLayout {
 }
 
 /**
+ * Whether a seat is turned a quarter — the left and right edges of the device
+ * rather than the near and far ones.
+ *
+ * It is the question behind two different things, which is why it is one
+ * function. A turned panel is authored with its width and height swapped
+ * (SEAT-5). And its height, as the player reads it, comes from half the board's
+ * width — so it is short whatever the player count, which is what decides how
+ * its commander damage is drawn (CMDR-14).
+ */
+export function isQuarterTurned(rotation: Rotation): boolean {
+  return rotation === 90 || rotation === -90;
+}
+
+/**
  * The direction, in screen coordinates (+x right, +y down), that points away
  * from the player sitting at a seat with this rotation — the way their text
  * reads "up", and the way they push a slider to mean "more".
