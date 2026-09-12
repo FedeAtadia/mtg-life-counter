@@ -38,6 +38,22 @@ export function openSettings(): HTMLElement {
     .parentElement!.parentElement as HTMLElement;
 }
 
+/**
+ * The seat a card is drawn in, read off its collector line (ROSTER-8).
+ *
+ * From the DOM rather than from state, because "which seat is this player in"
+ * is exactly what a move is supposed to change on screen.
+ */
+export function seatNumberOn(panel: HTMLElement): number {
+  const match = panel.textContent?.match(/Seat (\d+)/);
+  if (!match) throw new Error("no seat number on this panel");
+  return Number(match[1]);
+}
+
+/** The handle that moves a player to another seat (ROSTER-6). */
+export const seatHandleFor = (sheet: HTMLElement, name: string) =>
+  within(sheet).getByRole("button", { name: `Move ${name}` });
+
 /** The reset button in the hub's row (RESET-5). */
 export const resetButton = () =>
   screen.getByRole("button", { name: "Reset the game" });

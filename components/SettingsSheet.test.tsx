@@ -1,10 +1,13 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createGame } from "@/lib/gameReducer";
+import { createGame, gameReducer } from "@/lib/gameReducer";
 import { MAX_NAME_LENGTH } from "@/lib/rules";
 import { startedTimerAt } from "@/lib/timer";
+import { LONG_PRESS_MS } from "@/lib/useLongPress";
+import type { Action, GameState } from "@/lib/types";
 import {
   answerReset,
+  damageShownOn,
   hub,
   lifeOn,
   openSettings,
@@ -12,6 +15,8 @@ import {
   renderBoard,
   resetFromSettings,
   resetPanel,
+  seatHandleFor,
+  seatNumberOn,
 } from "../test/harness";
 import { removeServiceWorker, stubServiceWorker } from "../test/serviceWorker";
 import { removeWakeLock, stubWakeLock } from "../test/wakeLock";
@@ -30,6 +35,10 @@ afterEach(() => {
 
 const sheetOpen = () =>
   screen.queryByRole("heading", { name: "Game settings" }) !== null;
+
+/** A game with some history on it, built by running the real reducer. */
+const build = (state: GameState, ...actions: Action[]): GameState =>
+  actions.reduce(gameReducer, state);
 
 const colourGroup = (sheet: HTMLElement, player: string) =>
   within(sheet).getByRole("group", { name: `Commander colours for ${player}` });
@@ -238,6 +247,135 @@ describe("changing the table size", () => {
     expect(
       screen.getByLabelText("Add commander damage from Player 3"),
     ).toBeInTheDocument();
+  });
+});
+
+describe("moving a player to another seat (ROSTER-6)", () => {
+  /**
+   * Says what the browser would find under the finger. jsdom lays nothing out
+   * and has no `elementFromPoint` of its own, so standing one in is what lets
+   * the drag be driven here at all.
+   */
+  function fingerOver(element: Element | null) {
+    Object.defineProperty(document, "elementFromPoint", {
+      value: () => element,
+      configurable: true,
+      writable: true,
+    });
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(document, "elementFromPoint");
+  });
+
+  const rowOf = (sheet: HTMLElement, id: string) =>
+    sheet.querySelector(`[data-player-row="${id}"]`);
+
+  /** A handle held until it takes, dragged over another row, and let go. */
+  function dragOnto(handle: HTMLElement, row: Element | null) {
+    fireEvent.pointerDown(handle, { clientX: 0, clientY: 0 });
+    act(() => vi.advanceTimersByTime(LONG_PRESS_MS));
+    fingerOver(row);
+    fireEvent.pointerMove(handle, { clientX: 0, clientY: 60 });
+    fireEvent.pointerUp(handle, { clientX: 0, clientY: 60 });
+    // What a browser sends after the lift; it must not count as a tap.
+    fireEvent.click(handle);
+  }
+
+  it("gives every row a handle of its own", () => {
+    renderBoard(createGame("commander", 4));
+    const sheet = openSettings();
+
+    for (const name of ["Player 1", "Player 2", "Player 3", "Player 4"]) {
+      expect(seatHandleFor(sheet, name)).toBeInTheDocument();
+    }
+  });
+
+  it("puts the dragged player in the seat of the row they are dropped on", () => {
+    renderBoard(createGame("commander", 4));
+    const sheet = openSettings();
+    expect(seatNumberOn(panelFor("Player 1"))).toBe(1);
+
+    dragOnto(seatHandleFor(sheet, "Player 1"), rowOf(sheet, "p3"));
+
+    expect(seatNumberOn(panelFor("Player 1"))).toBe(3);
+    // And the ones they passed shuffle up rather than swapping with them.
+    expect(seatNumberOn(panelFor("Player 2"))).toBe(1);
+    expect(seatNumberOn(panelFor("Player 3"))).toBe(2);
+    expect(seatNumberOn(panelFor("Player 4"))).toBe(4);
+  });
+
+  it("brings their life and their damage with them (ROSTER-7)", () => {
+    renderBoard(
+      build(createGame("commander", 4), {
+        type: "ADJUST_COMMANDER_DAMAGE",
+        targetId: "p4",
+        sourceId: "p2",
+        delta: 5,
+      }),
+    );
+    const sheet = openSettings();
+
+    dragOnto(seatHandleFor(sheet, "Player 4"), rowOf(sheet, "p1"));
+
+    const panel = panelFor("Player 4");
+    expect(seatNumberOn(panel)).toBe(1);
+    // 40 less the 5 that commander landed, which is real damage (CMDR-2).
+    expect(lifeOn(panel)).toBe(35);
+    expect(damageShownOn(panel, "p2")).toBe(5);
+  });
+
+  it("moves nobody's name, only their seat (ROSTER-8)", () => {
+    // "Player 3" says who they are, not where they sit. Renaming people by
+    // moving them is the thing this feature exists to avoid.
+    renderBoard(createGame("commander", 4));
+    const sheet = openSettings();
+
+    dragOnto(seatHandleFor(sheet, "Player 3"), rowOf(sheet, "p1"));
+
+    expect(seatNumberOn(panelFor("Player 3"))).toBe(1);
+    expect(seatHandleFor(sheet, "Player 3")).toBeInTheDocument();
+    expect(within(sheet).getByLabelText("Name for Player 3")).toBeInTheDocument();
+  });
+
+  it("changes nothing when the hold goes nowhere", () => {
+    renderBoard(createGame("commander", 4));
+    const sheet = openSettings();
+    const handle = seatHandleFor(sheet, "Player 2");
+
+    fireEvent.pointerDown(handle, { clientX: 0, clientY: 0 });
+    act(() => vi.advanceTimersByTime(LONG_PRESS_MS));
+    fireEvent.pointerUp(handle, { clientX: 0, clientY: 0 });
+
+    expect(seatNumberOn(panelFor("Player 2"))).toBe(2);
+  });
+
+  it("changes nothing on a plain tap of the handle", () => {
+    // The handle is for dragging. A tap on it must not move anybody.
+    renderBoard(createGame("commander", 4));
+    const sheet = openSettings();
+
+    fireEvent.click(seatHandleFor(sheet, "Player 2"));
+
+    expect(seatNumberOn(panelFor("Player 2"))).toBe(2);
+  });
+
+  it("leaves the sheet open, so more than one player can be moved", () => {
+    renderBoard(createGame("commander", 4));
+    const sheet = openSettings();
+
+    // A row is dropped into the seat the row under it *currently* holds, so
+    // the second drag is aimed at whoever is in seat 1 by then — which after
+    // the first drag is Player 2, not Player 1.
+    dragOnto(seatHandleFor(sheet, "Player 1"), rowOf(sheet, "p2"));
+    expect(seatNumberOn(panelFor("Player 1"))).toBe(2);
+    expect(sheetOpen()).toBe(true);
+
+    dragOnto(seatHandleFor(sheet, "Player 4"), rowOf(sheet, "p2"));
+
+    expect(seatNumberOn(panelFor("Player 4"))).toBe(1);
+    expect(seatNumberOn(panelFor("Player 2"))).toBe(2);
+    expect(sheetOpen()).toBe(true);
   });
 });
 

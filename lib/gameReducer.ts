@@ -144,6 +144,28 @@ export function gameReducer(state: GameState, action: Action): GameState {
       return { ...state, players: syncDamageMaps(players) };
     }
 
+    /**
+     * A move between seats, which is a reorder and nothing else (ROSTER-6).
+     *
+     * Everything of a player's is kept against the player — life, name,
+     * colours, and the damage counters, which are keyed by who dealt the
+     * damage rather than by where they sat. So no counter has to be touched,
+     * and `syncDamageMaps` has nothing to do: the membership has not changed
+     * and it is order-independent anyway (ROSTER-7).
+     */
+    case "MOVE_PLAYER": {
+      const from = state.players.findIndex((p) => p.id === action.id);
+      if (from === -1) return state;
+      // The target comes from where a finger is, so it can be past either end.
+      const to = clamp(action.to, 0, state.players.length - 1);
+      if (to === from) return state;
+
+      const players = [...state.players];
+      const [moved] = players.splice(from, 1);
+      players.splice(to, 0, moved);
+      return { ...state, players };
+    }
+
     case "ADJUST_LIFE": {
       if (action.delta === 0) return state;
       return {
