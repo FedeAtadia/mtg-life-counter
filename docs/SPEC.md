@@ -140,9 +140,18 @@ Covered by `lib/gameReducer.test.ts`, `lib/rules.test.ts`,
   without anything being opened, in a text box where a real card keeps its
   rules. Reading the table is the common act; entering damage is the rare one,
   and only the rare one should cost a tap.
-- **CMDR-14** Up to three opponents get a line each — pip, name and value. Four
-  or more get pips and values without names, because four lines will not fit
-  beside a life total on a phone six people are sharing.
+- **CMDR-14** Named lines go only to a card with the height for them: an upright
+  seat with no more than three opponents. Every quarter-turned seat gets pips
+  and values instead, and so does any seat with four or more opponents. A turned
+  seat's height, as its player reads it, comes from half the board's width —
+  about 192px whatever the player count — and named lines there cost more than
+  twice what the strip costs, straight out of the life total. Counting opponents
+  alone gave a four-player board a smaller life total than a six-player one.
+- **CMDR-17** A lone named line is drawn large. One opponent on a two-player
+  board has room the third of three has not, and sizing all of them alike left
+  that card as cramped as the busiest one. Two and three lines are unchanged:
+  the only card that draws two is the near-edge seat at three players, which
+  has a tall panel and nothing to gain from the height.
 - **CMDR-15** A counter at lethal is marked on the readout itself, so a seat
   that is out can be traced to the commander that did it without opening
   anything.
@@ -165,8 +174,9 @@ Covered by `lib/gameReducer.test.ts`, `lib/rules.test.ts`,
 
 ## ROSTER — Who is at the table
 
-*Enforced by `lib/rules.ts`, `lib/gameReducer.ts`. Covered by
-`lib/gameReducer.test.ts`, `components/SettingsSheet.test.tsx`.*
+*Enforced by `lib/rules.ts`, `lib/gameReducer.ts`,
+`components/SettingsSheet.tsx`. Covered by `lib/gameReducer.test.ts`,
+`components/SettingsSheet.test.tsx`.*
 
 - **ROSTER-1** Between 2 and 6 players. The stepper stops at both ends.
 - **ROSTER-2** A player who joins gets the current format's starting life, and
@@ -178,6 +188,16 @@ Covered by `lib/gameReducer.test.ts`, `lib/rules.test.ts`,
   reused by the next player to join.
 - **ROSTER-5** A player can be removed from the stepper, which takes the last
   seat, or from their own row, which takes that one.
+- **ROSTER-6** A player can be moved to another seat from settings, by dragging
+  their row's handle. People do not sit in the same chairs every game, and the
+  alternative was renaming everyone.
+- **ROSTER-7** Everything of theirs moves with them: life, name, colour
+  identity, and the damage every other commander has dealt them. All of it is
+  kept against the player and none of it against the seat, so a move is a
+  reorder and nothing else.
+- **ROSTER-8** The seat number on a card follows the move, because it is a seat
+  number. Names do not: "Player 3" comes from who they are, not where they sit,
+  so nobody is renamed by being moved.
 
 ## NAME — Player names
 
@@ -207,6 +227,14 @@ Covered by `lib/gameReducer.test.ts`, `lib/rules.test.ts`,
   gold panels.
 - **COLOR-5** Each seat starts on a different single colour, cycling WUBRG.
 - **COLOR-6** Identity survives a reset and a format change.
+- **COLOR-7** A pip drawn for a whole identity shows every colour in it, as
+  wedges of one circle in WUBRG order (COLOR-1), so the pip is the same size
+  whether someone plays one colour or five. A single colour keeps its glyph;
+  past one there is no room for even two, let alone five. This is not the gold
+  trim rule — the trim goes gold at three (COLOR-3) precisely so the card reads
+  as multicolour, and the pip shows the real colours for the same reason the
+  wash does (COLOR-4): so a pod of three-colour commanders is not six
+  identical panels.
 
 ## SEAT — Board layout
 
@@ -304,12 +332,29 @@ could mean anything.
 - **ROLL-5** The result stays up until it is pressed away, however long that
   takes, and names the die it came off — "17" alone does not settle an
   argument about which die was thrown.
-- **ROLL-6** The result reads upright from both long edges of the table at
-  once. A throw belongs to no one seat, so it does not face one.
+- **ROLL-6** *Retired.* The result used to be drawn twice, upright for the near
+  edge and turned for the far one, on the grounds that a throw belongs to no
+  one seat. It is drawn once now, as the die itself (ROLL-10) — a die on a
+  table has one face up, and two of them read as two throws. The cost, put to
+  the table and accepted: the far side reads it upside down, as they would a
+  real die.
 - **ROLL-7** A throw changes nothing in the game and is not saved. It is not a
   life total.
 - **ROLL-8** Nothing random is read while rendering — only when an option is
   chosen — so the prerendered board and the hydrated one agree (PLAT-3).
+- **ROLL-9** Each option is drawn as the die's own silhouette with its number
+  inside it, rather than as the word for it. A d8, d10 and d12 are nearly the
+  same outline, so the number is what tells them apart; the shape is what makes
+  them findable without reading. Every option still answers to its name — "d20",
+  "Coin" — for anything that reads names rather than shapes.
+- **ROLL-10** A throw is drawn once, in the middle of the board, as the die it
+  was thrown as (ROLL-9) with its result on the face. The board stays visible
+  behind it: a throw is something that happened on the table, not another
+  screen.
+- **ROLL-11** It tumbles for about a second and settles, and the number arrives
+  upright rather than spinning into place — the shape turns, the number does
+  not. A coin turns through its own edge instead, because that is what a coin
+  does. A phone set to reduce motion is given the settled result immediately.
 
 ## SAVE — Persistence
 
@@ -465,10 +510,22 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   frame are asserted structurally (grid areas, rotations, tile columns) but
   never rendered for real — jsdom does not lay anything out. `SEAT-5` in
   particular is checked by eye, not by test.
-- **That the card frame fits.** `CMDR-13` costs the life total about half its
-  height at four players — 87 px to 45 — and `CMDR-14` exists because the rows
-  stop fitting at four opponents. Which mode is chosen is tested; that the
-  chosen one is legible on a real phone is not, and cannot be here.
+- **That the card frame fits.** `CMDR-13` costs the life total height, and
+  `CMDR-14` decides how much. Measured at 393×760, with the clock running:
+
+  | Players | Block | Life total |
+  | --- | --- | --- |
+  | 2 | 84px, one large line | 142px |
+  | 3, near edge | 77px, two lines | 121px |
+  | 3, the facing pair | 56px, strip | 62px |
+  | 4 | 56px, strip | 62px |
+  | 5, near edge | 65px, strip | 78px |
+  | 5 and 6, turned seats | 43px, strip | 77px |
+
+  Counting opponents alone used to put three named lines on every four-player
+  card: a 78px block and a 43px life total, smaller than a six-player board's.
+  Which mode a card gets is tested; that the chosen one is legible on a real
+  phone is not, and cannot be here.
 - **That the hub's band holds its controls.** `SEAT-7` is tested as grid
   areas, which is what stops a *card* reaching into the band. Whether the
   controls stay inside it is a question about their rendered sizes against a
@@ -503,6 +560,21 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   been measured at two seconds in a hidden tab. Nobody plays on a hidden page,
   but anybody checking the hold in a background tab will see it late, and it
   is not the code.
+- **Reordering seats needs a pointer.** `ROSTER-6` is a drag and nothing else:
+  there is no keyboard or screen-reader path to it, so a player using either
+  cannot change who sits where. That was raised and decided rather than
+  overlooked — the alternative was two more controls on a row that already
+  holds a name field, five colour buttons and a remove. The move itself is
+  fully covered at the reducer, and the wiring is covered with a stood-in
+  `elementFromPoint`; what no test here can reach is the gesture — whether a
+  thumb finds the handle, and whether dragging fights the sheet's own scroll.
+- **The tumble.** `ROLL-11` is CSS: keyframes in `app/globals.css` and two
+  classes. jsdom runs no animation and its `matchMedia` never matches, so what
+  the tests hold is the wiring — the shape carries the tumble, the number
+  carries the counter-turn — and not that either actually moves, or that
+  `prefers-reduced-motion` lands it immediately. Both are checked in a browser,
+  where the reduced-motion path is the one worth remembering to look at: it is
+  the branch nobody exercises by accident.
 - **The buzz.** jsdom has no `navigator.vibrate`. The feature test guarding it
   is covered; the buzz itself (HOLD-12, and the one a long press gives) is
   checked by hand on a device.

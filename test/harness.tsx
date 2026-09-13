@@ -38,6 +38,22 @@ export function openSettings(): HTMLElement {
     .parentElement!.parentElement as HTMLElement;
 }
 
+/**
+ * The seat a card is drawn in, read off its collector line (ROSTER-8).
+ *
+ * From the DOM rather than from state, because "which seat is this player in"
+ * is exactly what a move is supposed to change on screen.
+ */
+export function seatNumberOn(panel: HTMLElement): number {
+  const match = panel.textContent?.match(/Seat (\d+)/);
+  if (!match) throw new Error("no seat number on this panel");
+  return Number(match[1]);
+}
+
+/** The handle that moves a player to another seat (ROSTER-6). */
+export const seatHandleFor = (sheet: HTMLElement, name: string) =>
+  within(sheet).getByRole("button", { name: `Move ${name}` });
+
 /** The reset button in the hub's row (RESET-5). */
 export const resetButton = () =>
   screen.getByRole("button", { name: "Reset the game" });
@@ -138,6 +154,18 @@ export function damageEntryOn(
   const entry = panel.querySelector(`[data-damage-from="${sourceId}"]`);
   if (!entry) throw new Error(`no readout entry for ${sourceId} on this panel`);
   return entry as HTMLElement;
+}
+
+/**
+ * The colours a pip is drawn in, read off the wedges (COLOR-7).
+ *
+ * Empty for a pip with a single colour or none: those keep the disc and glyph,
+ * which say what they are without needing a wedge.
+ */
+export function pipColorsIn(element: HTMLElement): string[] {
+  return [...element.querySelectorAll("[data-wedge]")].map(
+    (wedge) => wedge.getAttribute("data-wedge") ?? "",
+  );
 }
 
 /** What the readout says one opponent's commander has landed. */

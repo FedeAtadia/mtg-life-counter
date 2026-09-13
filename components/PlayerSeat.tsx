@@ -1,6 +1,7 @@
 "use client";
 
 import PlayerPanel from "./PlayerPanel";
+import { isQuarterTurned } from "@/lib/seatLayout";
 import type { Seat } from "@/lib/seatLayout";
 import type { Player } from "@/lib/types";
 
@@ -19,7 +20,7 @@ interface Props {
  * versa, entirely in CSS — no measuring, no resize observers.
  */
 export default function PlayerSeat({ seat, player, onToggleDamage }: Props) {
-  const vertical = seat.rotation === 90 || seat.rotation === -90;
+  const vertical = isQuarterTurned(seat.rotation);
 
   return (
     <div

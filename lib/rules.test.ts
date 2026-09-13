@@ -11,6 +11,7 @@ import {
   eliminationReason,
   formatLabel,
   isEliminated,
+  namedRowScale,
   startingLifeFor,
 } from "./rules";
 import type { Player } from "./types";
@@ -161,25 +162,53 @@ describe("limits", () => {
 });
 
 describe("damageReadoutMode (CMDR-14)", () => {
-  it("gives every opponent a named line while there are three or fewer", () => {
-    // Three opponents is a four-player board, which is the busiest table where
-    // a name still fits beside a life total.
+  const upright = false;
+  const turned = true;
+
+  it("gives every opponent a named line on an upright seat with room", () => {
     for (const opponents of [1, 2, 3]) {
-      expect(damageReadoutMode(opponents)).toBe("rows");
+      expect(damageReadoutMode(opponents, upright)).toBe("rows");
     }
   });
 
-  it("drops the names at four opponents", () => {
-    // Four lines do not fit. Rows would have to shrink past legible, and the
-    // life total shrinks with them, so the names go instead of the numbers.
+  it("drops the names on a quarter-turned seat, however few there are", () => {
+    // A turned seat's height for its reader is half the board's width, about
+    // 192px whatever the count, and lines cost that more than twice what the
+    // strip costs — out of the life total.
+    for (const opponents of [1, 2, 3]) {
+      expect(damageReadoutMode(opponents, turned)).toBe("tiles");
+    }
+  });
+
+  it("drops them at four opponents even on an upright seat", () => {
+    // The near-edge seat at five players: upright, four opponents, and only
+    // 232px tall. Four lines do not fit there either.
     for (const opponents of [4, 5]) {
-      expect(damageReadoutMode(opponents)).toBe("tiles");
+      expect(damageReadoutMode(opponents, upright)).toBe("tiles");
+      expect(damageReadoutMode(opponents, turned)).toBe("tiles");
     }
   });
 
   it("still answers for a table with nobody else at it", () => {
     // Unreachable from two players up, but a readout that threw here would be
     // a crash rather than an empty box.
-    expect(damageReadoutMode(0)).toBe("rows");
+    expect(damageReadoutMode(0, upright)).toBe("rows");
+  });
+});
+
+describe("namedRowScale (CMDR-17)", () => {
+  it("draws a lone line larger than a line that shares the card", () => {
+    // Two players: one opponent, and a card with three times the room of the
+    // busiest one. Sizing them alike left it as cramped.
+    expect(namedRowScale(1)).toBe("lone");
+  });
+
+  it("leaves two and three exactly as they were", () => {
+    // The only card that draws two is the near-edge seat at three players. It
+    // has a tall panel and gains nothing from taller rows — it loses life
+    // total, which is the opposite of the point.
+    for (const rows of [2, 3]) {
+      expect(namedRowScale(rows)).toBe("shared");
+    }
   });
 });

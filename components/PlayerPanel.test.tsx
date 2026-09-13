@@ -15,6 +15,7 @@ import {
   lifeOn,
   minusZone,
   panelFor,
+  pipColorsIn,
   plusZone,
   readoutModeOn,
   readoutOn,
@@ -437,23 +438,79 @@ describe("the commander damage readout (CMDR-13)", () => {
     expect(damageShownOn(panel, "p2")).toBe(4);
   });
 
-  it("names each opponent while there are three of them (CMDR-14)", () => {
-    renderBoard(createGame("commander", 4));
+  it("names the one opponent at two players (CMDR-14)", () => {
+    renderBoard(createGame("commander", 2));
     const panel = panelFor("Player 1");
 
     expect(readoutModeOn(panel)).toBe("rows");
     expect(damageEntryOn(panel, "p2")).toHaveTextContent("Player 2");
   });
 
-  it("drops the names at four opponents, keeping the numbers (CMDR-14)", () => {
-    // Five seats on one phone: the names are what has to go, because a
-    // commander damage counter nobody can read is not a counter.
+  it("keeps the names on the near-edge seat at three players (CMDR-14)", () => {
+    // Upright, two opponents, and a tall panel: the one card on a three-player
+    // board that still has the height for lines.
+    renderBoard(createGame("commander", 3));
+    const panel = panelFor("Player 1");
+
+    expect(rotationOf(3, 0)).toBe(0);
+    expect(readoutModeOn(panel)).toBe("rows");
+    expect(damageEntryOn(panel, "p2")).toHaveTextContent("Player 2");
+  });
+
+  it("drops the names on a quarter-turned seat, however few there are (CMDR-14)", () => {
+    // The two seats facing each other at three players have the same two
+    // opponents as the near seat, and half the height to draw them in.
+    renderBoard(createGame("commander", 3));
+    const turned = panelFor("Player 2");
+
+    expect(rotationOf(3, 1)).toBe(90);
+    expect(readoutModeOn(turned)).toBe("tiles");
+    expect(damageEntryOn(turned, "p1")).not.toHaveTextContent("Player 1");
+    expect(damageShownOn(turned, "p1")).toBe(0);
+  });
+
+  it("gives every seat at four players the strip (CMDR-14)", () => {
+    // Where this started: four named lines' worth of card, and a life total
+    // smaller than a six-player board's.
+    renderBoard(createGame("commander", 4));
+
+    for (const name of ["Player 1", "Player 2", "Player 3", "Player 4"]) {
+      expect(readoutModeOn(panelFor(name))).toBe("tiles");
+    }
+  });
+
+  it("keeps the strip at four opponents on an upright seat (CMDR-14)", () => {
+    // The near-edge seat at five players. Upright, but four lines never fit.
     renderBoard(createGame("commander", 5));
     const panel = panelFor("Player 1");
 
+    expect(rotationOf(5, 0)).toBe(0);
     expect(readoutModeOn(panel)).toBe("tiles");
     expect(damageEntryOn(panel, "p2")).not.toHaveTextContent("Player 2");
     expect(damageShownOn(panel, "p2")).toBe(0);
+  });
+
+  it("shows every colour an opponent plays, not just their first (COLOR-7)", () => {
+    // The pip is all there is to tell opponents apart once the names are gone,
+    // and a Sultai commander drawn as one blue circle is a mono-blue one.
+    renderBoard(
+      build(createGame("commander", 4), {
+        type: "SET_PLAYER_COLORS",
+        id: "p2",
+        colors: ["b", "g", "u"],
+      }),
+    );
+    const panel = panelFor("Player 1");
+
+    expect(pipColorsIn(damageEntryOn(panel, "p2"))).toEqual(["u", "b", "g"]);
+  });
+
+  it("leaves a single-colour opponent their glyph (COLOR-7)", () => {
+    // Nothing to divide, and a symbol says more than one whole wedge.
+    renderBoard(createGame("commander", 4));
+    const panel = panelFor("Player 1");
+
+    expect(pipColorsIn(damageEntryOn(panel, "p2"))).toEqual([]);
   });
 
   it("marks the counter that is lethal, not just the seat (CMDR-15)", () => {

@@ -53,6 +53,8 @@ export type Action =
   | { type: "RESUME_TIMER"; at: number }
   | { type: "ADD_PLAYER" }
   | { type: "REMOVE_PLAYER"; id: PlayerId }
+  /** Seat order is array order, so moving seats is a reorder (ROSTER-6). */
+  | { type: "MOVE_PLAYER"; id: PlayerId; to: number }
   | { type: "ADJUST_LIFE"; id: PlayerId; delta: number }
   | {
       type: "ADJUST_COMMANDER_DAMAGE";

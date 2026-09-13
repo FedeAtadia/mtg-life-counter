@@ -9,6 +9,7 @@ import {
   identityOf,
 } from "@/lib/identity";
 import { MUSIC_LINKS } from "@/lib/music";
+import { targetUnder } from "@/lib/pointerTarget";
 import {
   MAX_NAME_LENGTH,
   MAX_PLAYERS,
@@ -19,7 +20,8 @@ import {
 import { formatElapsed, hasStarted, isRunning } from "@/lib/timer";
 import { useElapsed } from "@/lib/useElapsed";
 import { useGame } from "@/lib/useGame";
-import type { Format } from "@/lib/types";
+import { useLongPress } from "@/lib/useLongPress";
+import type { Format, Player, PlayerId } from "@/lib/types";
 import type { ServiceWorkerStatus } from "@/lib/useServiceWorker";
 import type { WakeLockStatus } from "@/lib/useWakeLock";
 
@@ -95,6 +97,39 @@ export default function SettingsSheet({
     dispatch({ type: "SET_FORMAT", format });
     setArmed(null);
   };
+
+  /**
+   * Which row is being carried, for the look of it. The move itself is already
+   * in the game state by the time the finger lifts: each step of the drag
+   * dispatches, so the board reorders under the sheet as it happens rather
+   * than all at once at the end.
+   */
+  const [moving, setMoving] = useState<PlayerId | null>(null);
+
+  const moveOver = (id: PlayerId, overId: PlayerId) => {
+    if (id === overId) return;
+    const to = state.players.findIndex((p) => p.id === overId);
+    if (to !== -1) dispatch({ type: "MOVE_PLAYER", id, to });
+  };
+
+  /**
+   * Keeps the row being carried on screen.
+   *
+   * This sheet scrolls — six players make about 1480px of it in a 667px box —
+   * so the first and last rows are never visible together and a drag on its
+   * own could never reach from one to the other. Scrolling the moved row back
+   * into view after each step slides the list under a finger that barely has
+   * to move, which is what makes a long move possible at all.
+   *
+   * Not implemented in jsdom, hence the guard; it is a browser check.
+   */
+  useEffect(() => {
+    if (!moving) return;
+    const row = document.querySelector(`[data-player-row="${moving}"]`);
+    if (row && typeof row.scrollIntoView === "function") {
+      row.scrollIntoView({ block: "nearest" });
+    }
+  }, [moving, state.players]);
 
   return (
     <div
@@ -204,9 +239,20 @@ export default function SettingsSheet({
             return (
               <li
                 key={player.id}
-                className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2.5"
+                data-player-row={player.id}
+                className={`flex flex-col gap-2 rounded-xl border bg-[var(--surface-2)] p-2.5 ${
+                  moving === player.id
+                    ? "border-[var(--gold)]"
+                    : "border-[var(--border)]"
+                }`}
               >
                 <div className="flex items-center gap-2">
+                  <SeatHandle
+                    player={player}
+                    onGrab={setMoving}
+                    onOver={moveOver}
+                    onDrop={() => setMoving(null)}
+                  />
                   <input
                     value={player.name}
                     onChange={(event) =>
@@ -316,6 +362,70 @@ export default function SettingsSheet({
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * The handle that moves a player to another seat (ROSTER-6).
+ *
+ * Held rather than simply dragged, and from a handle rather than the row,
+ * because the row also holds a text field and five colour buttons — a press
+ * that started anywhere on it would be fighting all of them. `useLongPress` is
+ * the app's one timed press; the dice button uses it for the same reason.
+ *
+ * `touch-action: none` is what stops the drag turning into a scroll of the
+ * sheet, which this list sits inside.
+ *
+ * React keys these rows by player id, so reordering *moves* the row's DOM
+ * rather than rebuilding it — which is what lets a drag survive its own
+ * reorder. Rebuilding it mid-drag would throw away the element holding the
+ * pointer, and with it the release.
+ */
+function SeatHandle({
+  player,
+  onGrab,
+  onOver,
+  onDrop,
+}: {
+  player: Player;
+  onGrab: (id: PlayerId) => void;
+  onOver: (id: PlayerId, overId: PlayerId) => void;
+  onDrop: () => void;
+}) {
+  const press = useLongPress({
+    // A tap is not a move. The handle does nothing until it is held.
+    onTap: () => {},
+    onLongPress: () => onGrab(player.id),
+    onDrag: ({ x, y }) => {
+      const overId = targetUnder(x, y, "[data-player-row]")?.dataset.playerRow;
+      if (overId) onOver(player.id, overId);
+    },
+    onRelease: onDrop,
+  });
+
+  return (
+    <button
+      type="button"
+      aria-label={`Move ${defaultNameFor(player.id)}`}
+      className="shrink-0 cursor-grab rounded-lg border border-[var(--border)] px-2 py-2 text-white/40 active:cursor-grabbing active:bg-white/10"
+      style={{ touchAction: "none" }}
+      {...press.handlers}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <circle cx="9" cy="6" r="1.6" />
+        <circle cx="15" cy="6" r="1.6" />
+        <circle cx="9" cy="12" r="1.6" />
+        <circle cx="15" cy="12" r="1.6" />
+        <circle cx="9" cy="18" r="1.6" />
+        <circle cx="15" cy="18" r="1.6" />
+      </svg>
+    </button>
   );
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import DieShape from "./DieShape";
 import { describeThrow } from "@/lib/dice";
 import type { Throw } from "@/lib/dice";
 
@@ -10,17 +11,28 @@ function faceOf(result: Throw): string {
 }
 
 /**
- * What a throw landed on, over the whole board, until someone presses it away
- * (ROLL-5).
+ * The die, as big as the middle of the board will take.
  *
- * It does not fade on a timer: the table is often mid-argument about what was
+ * Held to the shorter axis as well as the width, so a short screen does not
+ * get a die taller than the board it is thrown onto.
+ */
+const DIE = "min(72vw, 42dvh)";
+
+/**
+ * What a throw landed on: one die, in the middle of the board, until someone
+ * presses it away (ROLL-5, ROLL-10).
+ *
+ * It does not fade on a timer — the table is often mid-argument about what was
  * rolled, and a number that has gone settles nothing.
  *
- * Every other panel in the app belongs to one seat and turns to face it. A
- * throw belongs to nobody, so this shows the face twice — upright for the near
- * edge and turned for the far one, the way a playing card does (ROLL-6). The
- * players down the sides read a very large number a quarter turned, which is
- * the same compromise the board already makes for everything in the middle.
+ * Drawn once rather than at both ends. It used to be drawn twice, upright for
+ * the near edge and turned for the far one, on the grounds that a throw belongs
+ * to no one seat (ROLL-6, retired); but a die on a table has one face up, and
+ * two of them read as two throws. The far side reads this upside down, as they
+ * would a real die.
+ *
+ * The board stays visible behind it, which is the other half of the same idea:
+ * a throw is something that happened on the table, not another screen.
  */
 export default function RollResult({
   result,
@@ -29,57 +41,65 @@ export default function RollResult({
   result: Throw;
   onDismiss: () => void;
 }) {
+  const coin = result.kind === "coin";
+
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label={`Thrown — ${describeThrow(result)}`}
-      className="no-select fixed inset-0 z-40 flex flex-col bg-black/80"
+      className="no-select fixed inset-0 z-40 grid place-items-center bg-black/60"
     >
-      {/* The whole overlay presses it away, faces included: they draw over
-          this but let the press through. */}
+      {/* The whole overlay presses it away, the die included: it draws over
+          this but lets the press through. */}
       <button
         type="button"
         aria-label="Dismiss the throw"
         className="absolute inset-0 cursor-default"
         onClick={onDismiss}
       />
-      <Face result={result} rotation={180} hidden />
-      <Face result={result} rotation={0} />
-    </div>
-  );
-}
 
-function Face({
-  result,
-  rotation,
-  hidden = false,
-}: {
-  result: Throw;
-  rotation: 0 | 180;
-  /** The second copy is for eyes only; a screen reader hears it once. */
-  hidden?: boolean;
-}) {
-  const coin = result.kind === "coin";
-  return (
-    <div
-      data-throw-face
-      aria-hidden={hidden || undefined}
-      className="pointer-events-none flex flex-1 flex-col items-center justify-center gap-1"
-      style={{ transform: `rotate(${rotation}deg)` }}
-    >
-      <span className="font-[family-name:var(--font-display)] text-sm font-semibold tracking-[0.3em] text-[var(--metal)] uppercase">
-        {coin ? "Coin" : result.kind}
-      </span>
-      <span
-        className="tnum font-[family-name:var(--font-display)] leading-none font-semibold text-[var(--parchment)]"
+      <div
+        data-throw-die={result.kind}
+        className={`throw-die pointer-events-none relative grid place-items-center ${
+          coin ? "throw-die-coin" : ""
+        }`}
         style={{
-          fontSize: coin ? "min(16vw, 9dvh)" : "min(36vw, 22dvh)",
-          textShadow: "0 4px 24px rgba(0,0,0,0.8)",
+          width: DIE,
+          height: DIE,
+          filter: "drop-shadow(0 14px 30px rgba(0,0,0,0.75))",
         }}
       >
-        {faceOf(result)}
-      </span>
+        <DieShape
+          kind={result.kind}
+          className="absolute inset-0 size-full text-[var(--metal)]"
+          strokeWidth={1.1}
+          fill="#17130f"
+        />
+
+        {/* Counter-turned against the tumble, so it lands upright (ROLL-11). */}
+        <span
+          className={`throw-steady tnum relative font-[family-name:var(--font-display)] leading-none font-bold text-[var(--parchment)] ${
+            // A triangle's middle is not its centre: the number sits where the
+            // area is, and has less room to sit in.
+            result.kind === "d4" ? "translate-y-[12%]" : ""
+          }`}
+          style={{
+            fontSize: coin ? "min(11vw, 6.5dvh)" : "min(26vw, 15dvh)",
+            letterSpacing: coin ? "0.06em" : undefined,
+            textTransform: coin ? "uppercase" : undefined,
+          }}
+        >
+          {faceOf(result)}
+        </span>
+
+        <span
+          className="absolute -bottom-[9%] left-0 w-full text-center font-[family-name:var(--font-display)] text-sm font-semibold tracking-[0.3em] text-[var(--metal)] uppercase"
+          aria-hidden="true"
+        >
+          {coin ? "Coin" : result.kind}
+        </span>
+      </div>
     </div>
   );
 }

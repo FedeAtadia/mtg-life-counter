@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { MAX_PLAYERS, MIN_PLAYERS } from "./rules";
-import { HUB_TRACK, SEAT_LAYOUTS, layoutFor, upVectorFor } from "./seatLayout";
+import {
+  HUB_TRACK,
+  SEAT_LAYOUTS,
+  isQuarterTurned,
+  layoutFor,
+  upVectorFor,
+} from "./seatLayout";
 import type { Rotation } from "./seatLayout";
 
 const counts = Array.from(
@@ -192,6 +198,32 @@ describe("seat layouts", () => {
         expect(upVectorFor(seat.rotation)).toEqual(
           AWAY_FROM_EDGE[seat.rotation],
         );
+      }
+    }
+  });
+
+  it("knows which seats are turned a quarter", () => {
+    // Written out rather than derived, so this stays an independent check.
+    // What hangs on it: a turned seat's panel has its width and height swapped
+    // (SEAT-5), which is why its damage readout is drawn differently (CMDR-14).
+    const TURNED: Record<number, boolean> = {
+      0: false, // near edge, upright
+      180: false, // far edge, upright the other way
+      90: true, // left edge
+      [-90]: true, // right edge
+    };
+
+    for (const [rotation, expected] of Object.entries(TURNED)) {
+      expect(isQuarterTurned(Number(rotation) as Rotation)).toBe(expected);
+    }
+  });
+
+  it("agrees with the seats the board actually uses", () => {
+    // Only the near-edge seats at two, three and five players are upright.
+    for (const count of counts) {
+      for (const seat of SEAT_LAYOUTS[count].seats) {
+        const upright = seat.rotation === 0 || seat.rotation === 180;
+        expect(isQuarterTurned(seat.rotation)).toBe(!upright);
       }
     }
   });

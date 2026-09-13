@@ -1,6 +1,8 @@
 "use client";
 
+import DieShape, { sidesOf } from "./DieShape";
 import { THROW_KINDS, isThrowKind } from "@/lib/dice";
+import { targetUnder } from "@/lib/pointerTarget";
 import type { ThrowKind } from "@/lib/dice";
 
 /**
@@ -20,18 +22,12 @@ export interface Anchor {
 /**
  * Which option, if any, is under a point on the screen (ROLL-2, ROLL-3).
  *
- * Asks the browser rather than working it out from the picker's own geometry,
- * which would have to be kept in step with every change to its layout. What
- * is under a finger is usually an option's label rather than the option, hence
- * the walk up to the nearest one. Null for anything else — the gap between
- * options, the backdrop — and for a browser that cannot say at all.
+ * Null for anything that is not an option — the gap between them, the backdrop
+ * — and for a browser that cannot say at all. `targetUnder` explains why it is
+ * asked this way rather than measured.
  */
 export function throwKindAt(x: number, y: number): ThrowKind | null {
-  if (typeof document.elementFromPoint !== "function") return null;
-  const option = document
-    .elementFromPoint(x, y)
-    ?.closest<HTMLElement>("[data-throw]");
-  const kind = option?.dataset.throw;
+  const kind = targetUnder(x, y, "[data-throw]")?.dataset.throw;
   return isThrowKind(kind) ? kind : null;
 }
 
@@ -117,12 +113,31 @@ function Option({
       type="button"
       data-throw={kind}
       data-armed={armed}
+      aria-label={LABEL[kind]}
       onClick={() => onPick(kind)}
       className={`flex h-16 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] font-[family-name:var(--font-display)] text-xl font-semibold text-[var(--parchment)] active:brightness-125 data-[armed=true]:border-[var(--gold)] data-[armed=true]:bg-[var(--parchment-bg)] data-[armed=true]:text-[var(--gold)] ${
         wide ? "col-span-3" : ""
       }`}
     >
-      <span>{LABEL[kind]}</span>
+      {/* The button's own name is the label (ROLL-9); everything inside it is
+          artwork, and is hidden so a screen reader reads "d12" rather than
+          "d12 12". */}
+      <span
+        className="relative grid size-10 shrink-0 place-items-center"
+        aria-hidden="true"
+      >
+        <DieShape kind={kind} className="absolute inset-0 size-full" />
+        <span
+          className={`relative leading-none ${
+            // A triangle's middle is not its centre: the 4 sits where the area
+            // is, and has less room to sit in.
+            kind === "d4" ? "translate-y-[3px] text-[11px]" : "text-[13px]"
+          }`}
+        >
+          {sidesOf(kind)}
+        </span>
+      </span>
+      {kind === "coin" && <span aria-hidden="true">Coin</span>}
     </button>
   );
 }

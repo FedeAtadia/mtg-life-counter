@@ -586,6 +586,127 @@ describe("seat numbering", () => {
   });
 });
 
+describe("moving a player to another seat (ROSTER-6)", () => {
+  const order = (state: GameState) => state.players.map((p) => p.id);
+  const move = (id: string, to: number): Action => ({
+    type: "MOVE_PLAYER",
+    id,
+    to,
+  });
+
+  it("takes them out of their seat and puts them in the new one", () => {
+    const four = createGame("commander", 4);
+
+    expect(order(apply(four, move("p1", 2)))).toEqual(["p2", "p3", "p1", "p4"]);
+    expect(order(apply(four, move("p4", 0)))).toEqual(["p4", "p1", "p2", "p3"]);
+    expect(order(apply(four, move("p3", 1)))).toEqual(["p1", "p3", "p2", "p4"]);
+  });
+
+  it("shuffles the others along rather than swapping two seats", () => {
+    // A swap would leave everyone between them where they were, which is not
+    // what dragging a row past two others looks like.
+    const four = createGame("commander", 4);
+
+    expect(order(apply(four, move("p1", 3)))).toEqual(["p2", "p3", "p4", "p1"]);
+  });
+
+  it("brings everything of theirs with them (ROSTER-7)", () => {
+    // Life, name, colours and the damage others have dealt them are all kept
+    // against the player, so a move is a reorder and nothing else.
+    const before = apply(
+      createGame("commander", 4),
+      { type: "RENAME_PLAYER", id: "p3", name: "Nico" },
+      { type: "SET_PLAYER_COLORS", id: "p3", colors: ["u", "g"] },
+      { type: "ADJUST_LIFE", id: "p3", delta: -9 },
+      damage("p3", "p2", 6),
+      damage("p1", "p3", 4),
+    );
+
+    const after = apply(before, move("p3", 0));
+
+    expect(after.players[0]).toEqual(find(before, "p3"));
+    // 40, less the 9 they lost, less the 6 their opponent's commander landed —
+    // commander damage is real damage (CMDR-2).
+    expect(find(after, "p3").life).toBe(25);
+    expect(find(after, "p3").name).toBe("Nico");
+    expect(find(after, "p3").colors).toEqual(["u", "g"]);
+    // What p2's commander did to them, and what theirs did to p1.
+    expect(find(after, "p3").commanderDamage.p2).toBe(6);
+    expect(find(after, "p1").commanderDamage.p3).toBe(4);
+  });
+
+  it("leaves every counter pointing at the same commander", () => {
+    // Damage is keyed by who dealt it, never by where they sat, so a reorder
+    // must not shift a single counter onto a different player.
+    const before = apply(
+      createGame("commander", 4),
+      damage("p1", "p2", 3),
+      damage("p1", "p4", 7),
+    );
+
+    const after = apply(before, move("p4", 0), move("p2", 3));
+
+    expect(find(after, "p1").commanderDamage).toEqual(
+      find(before, "p1").commanderDamage,
+    );
+  });
+
+  it("does nothing at all when the seat is the one they are in", () => {
+    const four = createGame("commander", 4);
+
+    expect(apply(four, move("p2", 1))).toBe(four);
+  });
+
+  it("does nothing for a player who is not at the table", () => {
+    const four = createGame("commander", 4);
+
+    expect(apply(four, move("p9", 0))).toBe(four);
+  });
+
+  it("holds a seat that is off the end to the ends of the table", () => {
+    // The index comes from a finger's position, so it has to survive one that
+    // was past the last row or above the first.
+    const four = createGame("commander", 4);
+
+    expect(order(apply(four, move("p1", 99)))).toEqual([
+      "p2",
+      "p3",
+      "p4",
+      "p1",
+    ]);
+    expect(order(apply(four, move("p4", -5)))).toEqual([
+      "p4",
+      "p1",
+      "p2",
+      "p3",
+    ]);
+  });
+
+  it("keeps the table the same size", () => {
+    const four = createGame("commander", 4);
+
+    for (const to of [-1, 0, 1, 2, 3, 9]) {
+      expect(apply(four, move("p2", to)).players).toHaveLength(4);
+    }
+  });
+
+  it("survives a save and a load in its new order (ROSTER-6)", () => {
+    // Seat order is the array's own order, so nothing about storage needs to
+    // know this happened.
+    const moved = apply(createGame("commander", 5), move("p5", 0));
+
+    const loaded = parseGameState(JSON.parse(JSON.stringify(moved)));
+
+    expect(loaded?.players.map((p) => p.id)).toEqual([
+      "p5",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+    ]);
+  });
+});
+
 describe("the reducer is pure", () => {
   it("returns the same state object for an action that changes nothing", () => {
     // Referential equality is what lets the context skip a re-render, so this
