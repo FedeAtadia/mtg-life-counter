@@ -281,11 +281,18 @@ export default function SettingsSheet({
                 </div>
 
                 {/* Commander colour identity. No selection is colourless, which
-                    is a real identity rather than an unfinished one. */}
+                    is a real identity rather than an unfinished one.
+
+                    The pips sit on the right so the left of the row, under
+                    the grip, is empty: a finger dragging a seat travels
+                    there, and a thumb scrolling the sheet can use it without
+                    landing on a button. The identity is no longer written
+                    beside them, but a screen reader still hears it. */}
                 <div
-                  className="flex items-center gap-1.5"
+                  className="flex items-center justify-end gap-1.5"
                   role="group"
                   aria-label={`Commander colours for ${defaultNameFor(player.id)}`}
+                  aria-describedby={`identity-${player.id}`}
                 >
                   {MANA_COLORS.map((color) => {
                     const on = colors.includes(color);
@@ -314,7 +321,7 @@ export default function SettingsSheet({
                       </button>
                     );
                   })}
-                  <span className="ml-1 text-xs text-[var(--muted)]">
+                  <span id={`identity-${player.id}`} className="sr-only">
                     {describeIdentity(colors)}
                   </span>
                 </div>

@@ -471,7 +471,9 @@ describe("commander colours", () => {
     fireEvent.click(within(group).getByLabelText("Green"));
     fireEvent.click(within(group).getByLabelText("Blue"));
 
-    expect(within(group).getByText("Blue and Green")).toBeInTheDocument();
+    // No longer written beside the pips, which sit on the right with the row
+    // clear underneath the grip; still read out with the colour group.
+    expect(group).toHaveAccessibleDescription("Blue and Green");
   });
 
   it("calls an empty selection colourless, not unfinished", () => {
@@ -481,7 +483,7 @@ describe("commander colours", () => {
 
     fireEvent.click(within(group).getByLabelText("White"));
 
-    expect(within(group).getByText("Colourless")).toBeInTheDocument();
+    expect(group).toHaveAccessibleDescription("Colourless");
   });
 
   it("changes only that player's identity", () => {
