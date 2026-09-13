@@ -282,6 +282,33 @@ describe("moving a player to another seat (ROSTER-6)", () => {
     fireEvent.click(handle);
   }
 
+  it("carries a player down several seats in one drag (ROSTER-9)", () => {
+    // Going down, React reorders by moving the dragged row's own element, and
+    // a browser takes the pointer's capture away from an element that moves.
+    // That is fired after every step here, as a real browser does, and moves
+    // land on the row under the finger rather than on the handle.
+    renderBoard(createGame("commander", 4));
+    const sheet = openSettings();
+    const handle = seatHandleFor(sheet, "Player 1");
+
+    fireEvent.pointerDown(handle, { clientX: 0, clientY: 0, pointerId: 1 });
+    act(() => vi.advanceTimersByTime(LONG_PRESS_MS));
+    for (const next of ["p2", "p3", "p4"]) {
+      const row = rowOf(sheet, next)!;
+      fingerOver(row);
+      fireEvent.pointerMove(row, { clientX: 0, clientY: 60, pointerId: 1 });
+      fireEvent.lostPointerCapture(handle, { pointerId: 1 });
+    }
+    fireEvent.pointerUp(rowOf(sheet, "p4")!, {
+      clientX: 0,
+      clientY: 60,
+      pointerId: 1,
+    });
+
+    expect(seatNumberOn(panelFor("Player 1"))).toBe(4);
+    expect(seatNumberOn(panelFor("Player 2"))).toBe(1);
+  });
+
   it("gives every row a handle of its own", () => {
     renderBoard(createGame("commander", 4));
     const sheet = openSettings();

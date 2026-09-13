@@ -198,6 +198,11 @@ Covered by `lib/gameReducer.test.ts`, `lib/rules.test.ts`,
 - **ROSTER-8** The seat number on a card follows the move, because it is a seat
   number. Names do not: "Player 3" comes from who they are, not where they sit,
   so nobody is renamed by being moved.
+- **ROSTER-9** One drag carries a player as far as it goes, in either
+  direction, and only lifting the finger ends it. A downward drag used to stop
+  after one seat: reordering moves the dragged row's own element, a browser
+  takes the pointer's capture away from an element that moves, and the gesture
+  ended with it.
 
 ## NAME — Player names
 
@@ -546,9 +551,15 @@ Things the tests do not cover, recorded so nobody assumes otherwise.
   a thumb slides off a button and the gesture survives is exercised only
   through the guard around it. Any slide worth much leaves the button it
   started on, so capture is what makes HOLD-8 work on a phone, and nothing
-  here proves it. The same goes for the dice button (ROLL-2): once the picker
-  is up, capture is what keeps the finger's moves coming to the button that
-  reports them.
+  here proves it. The dice button (ROLL-2) and the seat handles (ROSTER-6) no
+  longer depend on capture once a hold has taken — they follow the finger on
+  the whole page — because capture does not survive its element being moved
+  in the DOM, and a seat row dragged downwards is exactly that.
+  Synthetic pointer events in a browser do not take capture either, which is
+  how that downward-drag bug passed a browser check: capture was never taken,
+  so it was never lost. `ROSTER-9` is tested by firing `lostpointercapture`
+  mid-drag the way a browser does; the real thing is found only with a real
+  finger, or trusted input that can hold a press.
 - **Which option is under a real finger.** `ROLL-2` and `ROLL-3` are tested
   with a stand-in `elementFromPoint`, because jsdom lays nothing out and has
   none of its own — so the tests say what is under the finger and check what

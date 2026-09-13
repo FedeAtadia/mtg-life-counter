@@ -376,10 +376,12 @@ export default function SettingsSheet({
  * `touch-action: none` is what stops the drag turning into a scroll of the
  * sheet, which this list sits inside.
  *
- * React keys these rows by player id, so reordering *moves* the row's DOM
- * rather than rebuilding it — which is what lets a drag survive its own
- * reorder. Rebuilding it mid-drag would throw away the element holding the
- * pointer, and with it the release.
+ * A drag survives its own reorder because `useLongPress` follows the finger on
+ * the whole page once the hold takes, not because the handle keeps the
+ * pointer (ROSTER-9). It does not keep it: dragging a row *down*, React
+ * reorders the list by moving that row's own element, and a browser takes
+ * capture away from an element that moves. Dragging *up* moves the other rows
+ * instead, which is why the downward case was the only one that broke.
  */
 function SeatHandle({
   player,
