@@ -240,83 +240,99 @@ export default function SettingsSheet({
               <li
                 key={player.id}
                 data-player-row={player.id}
-                className={`flex flex-col gap-2 rounded-xl border bg-[var(--surface-2)] p-2.5 ${
+                className={`flex items-start gap-2 rounded-xl border bg-[var(--surface-2)] p-2.5 ${
                   moving === player.id
                     ? "border-[var(--gold)]"
                     : "border-[var(--border)]"
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <SeatHandle
-                    player={player}
-                    onGrab={setMoving}
-                    onOver={moveOver}
-                    onDrop={() => setMoving(null)}
-                  />
-                  <input
-                    value={player.name}
-                    onChange={(event) =>
-                      dispatch({
-                        type: "RENAME_PLAYER",
-                        id: player.id,
-                        name: event.target.value,
-                      })
-                    }
-                    placeholder={defaultNameFor(player.id)}
-                    maxLength={MAX_NAME_LENGTH}
-                    aria-label={`Name for ${defaultNameFor(player.id)}`}
-                    className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm outline-none focus:border-white/40"
-                  />
-                  <button
-                    type="button"
-                    aria-label={`Remove ${defaultNameFor(player.id)}`}
-                    disabled={playerCount <= MIN_PLAYERS}
-                    onClick={() =>
-                      dispatch({ type: "REMOVE_PLAYER", id: player.id })
-                    }
-                    className="shrink-0 rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-white/60 active:bg-white/10 disabled:opacity-30"
-                  >
-                    &times;
-                  </button>
-                </div>
+                {/* Two columns: the grip on its own, and everything else
+                    beside it. The space under the grip is the lane a dragging
+                    finger or a scrolling thumb travels down, and it is exactly
+                    as wide as the grip — no wider, so the row has no dead
+                    space, and no narrower, so the lane is still there. */}
+                <SeatHandle
+                  player={player}
+                  onGrab={setMoving}
+                  onOver={moveOver}
+                  onDrop={() => setMoving(null)}
+                />
 
-                {/* Commander colour identity. No selection is colourless, which
-                    is a real identity rather than an unfinished one. */}
-                <div
-                  className="flex items-center gap-1.5"
-                  role="group"
-                  aria-label={`Commander colours for ${defaultNameFor(player.id)}`}
-                >
-                  {MANA_COLORS.map((color) => {
-                    const on = colors.includes(color);
-                    return (
-                      <button
-                        key={color}
-                        type="button"
-                        aria-pressed={on}
-                        aria-label={MANA[color].label}
-                        onClick={() =>
-                          dispatch({
-                            type: "SET_PLAYER_COLORS",
-                            id: player.id,
-                            colors: on
-                              ? colors.filter((c) => c !== color)
-                              : [...colors, color],
-                          })
-                        }
-                        className="grid h-9 w-9 place-items-center rounded-full border-2 transition-opacity"
-                        style={{
-                          borderColor: on ? MANA[color].hex : "var(--border)",
-                          opacity: on ? 1 : 0.35,
-                        }}
-                      >
-                        <ManaPip color={color} size="22px" />
-                      </button>
-                    );
-                  })}
-                  <span className="ml-1 text-xs text-[var(--muted)]">
-                    {describeIdentity(colors)}
-                  </span>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={player.name}
+                      onChange={(event) =>
+                        dispatch({
+                          type: "RENAME_PLAYER",
+                          id: player.id,
+                          name: event.target.value,
+                        })
+                      }
+                      placeholder={defaultNameFor(player.id)}
+                      maxLength={MAX_NAME_LENGTH}
+                      aria-label={`Name for ${defaultNameFor(player.id)}`}
+                      className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm outline-none focus:border-white/40"
+                    />
+                    <button
+                      type="button"
+                      aria-label={`Remove ${defaultNameFor(player.id)}`}
+                      disabled={playerCount <= MIN_PLAYERS}
+                      onClick={() =>
+                        dispatch({ type: "REMOVE_PLAYER", id: player.id })
+                      }
+                      className="shrink-0 rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-white/60 active:bg-white/10 disabled:opacity-30"
+                    >
+                      &times;
+                    </button>
+                  </div>
+
+                  {/* Commander colour identity. No selection is colourless,
+                      which is a real identity rather than an unfinished one.
+
+                      Spread from the name field's left edge to the remove
+                      button's right, so the pips fill the column they share
+                      with the name. The identity is not written beside them,
+                      but a screen reader still hears it. */}
+                  <div
+                    className="flex items-center justify-between"
+                    role="group"
+                    aria-label={`Commander colours for ${defaultNameFor(player.id)}`}
+                    aria-describedby={`identity-${player.id}`}
+                  >
+                    {MANA_COLORS.map((color) => {
+                      const on = colors.includes(color);
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          aria-pressed={on}
+                          aria-label={MANA[color].label}
+                          onClick={() =>
+                            dispatch({
+                              type: "SET_PLAYER_COLORS",
+                              id: player.id,
+                              colors: on
+                                ? colors.filter((c) => c !== color)
+                                : [...colors, color],
+                            })
+                          }
+                          className="grid h-9 w-9 place-items-center rounded-full border-2 transition-opacity"
+                          style={{
+                            borderColor: on ? MANA[color].hex : "var(--border)",
+                            opacity: on ? 1 : 0.35,
+                          }}
+                        >
+                          <ManaPip color={color} size="22px" />
+                        </button>
+                      );
+                    })}
+                    {/* Absolutely positioned by sr-only, so it takes no share
+                        of the spread. */}
+                    <span id={`identity-${player.id}`} className="sr-only">
+                      {describeIdentity(colors)}
+                    </span>
+                  </div>
                 </div>
               </li>
             );
@@ -376,10 +392,12 @@ export default function SettingsSheet({
  * `touch-action: none` is what stops the drag turning into a scroll of the
  * sheet, which this list sits inside.
  *
- * React keys these rows by player id, so reordering *moves* the row's DOM
- * rather than rebuilding it — which is what lets a drag survive its own
- * reorder. Rebuilding it mid-drag would throw away the element holding the
- * pointer, and with it the release.
+ * A drag survives its own reorder because `useLongPress` follows the finger on
+ * the whole page once the hold takes, not because the handle keeps the
+ * pointer (ROSTER-9). It does not keep it: dragging a row *down*, React
+ * reorders the list by moving that row's own element, and a browser takes
+ * capture away from an element that moves. Dragging *up* moves the other rows
+ * instead, which is why the downward case was the only one that broke.
  */
 function SeatHandle({
   player,

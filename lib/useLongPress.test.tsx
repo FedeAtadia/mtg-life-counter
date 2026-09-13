@@ -197,3 +197,111 @@ describe("a press that goes nowhere", () => {
     expect(menu).toBe(false);
   });
 });
+
+describe("a hold that outlives its element's grip on the pointer (ROSTER-9)", () => {
+  /**
+   * Somewhere on the page that is not the button. Once a real browser takes
+   * capture away, moves target whatever is under the finger, not the button.
+   */
+  const elsewhere = () => document.body;
+
+  /** A press held until the long press has fired. */
+  function hold(button: HTMLElement, pointerId = 1) {
+    fireEvent.pointerDown(button, { clientX: 0, clientY: 0, pointerId });
+    act(() => vi.advanceTimersByTime(LONG_PRESS_MS));
+  }
+
+  it("keeps going when the browser takes the pointer's capture away", () => {
+    // A seat row dragged downwards is moved in the DOM to reorder it, and a
+    // browser takes capture from an element that moves. Ending the gesture
+    // there is what stopped every downward drag after one seat.
+    const { on, button } = mount();
+    hold(button);
+
+    fireEvent.lostPointerCapture(button, { pointerId: 1 });
+    expect(on.onRelease).not.toHaveBeenCalled();
+
+    fireEvent.pointerMove(elsewhere(), { clientX: 5, clientY: 80, pointerId: 1 });
+    expect(on.onDrag).toHaveBeenCalledWith({ x: 5, y: 80 });
+  });
+
+  it("still ends a press that loses capture before the hold has taken", () => {
+    const { on, button } = mount();
+
+    fireEvent.pointerDown(button, { clientX: 0, clientY: 0, pointerId: 1 });
+    fireEvent.lostPointerCapture(button, { pointerId: 1 });
+    act(() => vi.advanceTimersByTime(LONG_PRESS_MS * 3));
+
+    expect(on.onLongPress).not.toHaveBeenCalled();
+  });
+
+  it("follows the finger anywhere on the page once held, and not before", () => {
+    const { on, button } = mount();
+
+    fireEvent.pointerDown(button, { clientX: 0, clientY: 0, pointerId: 1 });
+    fireEvent.pointerMove(elsewhere(), { clientX: 3, clientY: 4, pointerId: 1 });
+    expect(on.onDrag).not.toHaveBeenCalled();
+
+    act(() => vi.advanceTimersByTime(LONG_PRESS_MS));
+    fireEvent.pointerMove(elsewhere(), { clientX: 30, clientY: 40, pointerId: 1 });
+
+    expect(on.onDrag).toHaveBeenCalledTimes(1);
+    expect(on.onDrag).toHaveBeenCalledWith({ x: 30, y: 40 });
+  });
+
+  it("reports a move over the button itself once, not twice", () => {
+    // The button's own handler and the page-wide one both see an event that
+    // lands on the button. Only one of them may answer it.
+    const { on, button } = mount();
+    hold(button);
+
+    fireEvent.pointerMove(button, { clientX: 9, clientY: 9, pointerId: 1 });
+
+    expect(on.onDrag).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases on a lift anywhere on the page, once", () => {
+    const { on, button } = mount();
+    hold(button);
+    fireEvent.lostPointerCapture(button, { pointerId: 1 });
+
+    fireEvent.pointerUp(elsewhere(), { clientX: 7, clientY: 9, pointerId: 1 });
+    fireEvent.pointerUp(elsewhere(), { clientX: 7, clientY: 9, pointerId: 1 });
+
+    expect(on.onRelease).toHaveBeenCalledTimes(1);
+    expect(on.onRelease).toHaveBeenCalledWith({ x: 7, y: 9 });
+  });
+
+  it("ignores another finger", () => {
+    const { on, button } = mount();
+    hold(button, 1);
+
+    fireEvent.pointerMove(elsewhere(), { clientX: 1, clientY: 1, pointerId: 2 });
+    fireEvent.pointerUp(elsewhere(), { clientX: 1, clientY: 1, pointerId: 2 });
+
+    expect(on.onDrag).not.toHaveBeenCalled();
+    expect(on.onRelease).not.toHaveBeenCalled();
+  });
+
+  it("stops listening once the press is over", () => {
+    const { on, button } = mount();
+    hold(button);
+    fireEvent.pointerUp(elsewhere(), { clientX: 0, clientY: 0, pointerId: 1 });
+
+    fireEvent.pointerMove(elsewhere(), { clientX: 2, clientY: 2, pointerId: 1 });
+
+    expect(on.onDrag).not.toHaveBeenCalled();
+  });
+
+  it("stops listening when the button goes mid-hold", () => {
+    const { on, button, unmount } = mount();
+    hold(button);
+    unmount();
+
+    fireEvent.pointerMove(elsewhere(), { clientX: 2, clientY: 2, pointerId: 1 });
+    fireEvent.pointerUp(elsewhere(), { clientX: 2, clientY: 2, pointerId: 1 });
+
+    expect(on.onDrag).not.toHaveBeenCalled();
+    expect(on.onRelease).not.toHaveBeenCalled();
+  });
+});
